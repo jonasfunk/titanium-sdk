@@ -384,6 +384,53 @@
   }];
 }
 
+- (BOOL)isSectionHeaderInSectionWithIndexVisible:(id)index
+{
+	ENSURE_SINGLE_ARG(index, NSNumber);
+    
+	UITableView* tableview = self.listView.tableView;
+    
+
+	if(tableview.numberOfSections < [TiUtils intValue:index])
+	{
+		return NO;
+	}
+    
+	CGRect headerRect;
+    
+	// In plain style, the section headers are floating on the top, so the section header is visible if any part of the section's rect is still visible.
+	// In grouped style, the section headers are not floating, so the section header is only visible if it's actualy rect is visible.
+	if (tableview.style == UITableViewStylePlain) {
+		headerRect = [tableview rectForSection:[TiUtils intValue:index]];
+	} else {
+		headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
+	}
+	    
+	// The "visible part" of the tableView is based on the content offset and the tableView's size.
+	CGRect visiblePartOfTableView = CGRectMake(tableview.contentOffset.x, tableview.contentOffset.y, tableview.bounds.size.width, tableview.bounds.size.height);
+	return CGRectIntersectsRect(visiblePartOfTableView, headerRect);
+}
+
+
+- (TiPoint *)getYOffsetForSection:(id)index
+{
+    
+	ENSURE_SINGLE_ARG(index, NSNumber);
+    
+	UITableView* tableview = self.listView.tableView;
+    
+	CGRect headerRect;
+    
+	if (tableview.style == UITableViewStylePlain) {
+		headerRect = [tableview rectForSection:[TiUtils intValue:index]];
+	} else {
+		headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
+	}
+    
+	return  [[[TiPoint alloc] initWithPoint:headerRect.origin] autorelease];
+}
+
+
 - (void)replaceSectionAt:(id)args
 {
   ENSURE_ARG_COUNT(args, 2);

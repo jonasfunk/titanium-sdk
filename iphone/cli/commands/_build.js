@@ -1859,6 +1859,7 @@ iOSBuilder.prototype.validate = function validate(logger, config, cli) {
 			// if they haven't, respect the tiapp.xml value if set one way or the other
 		} else if (Object.prototype.hasOwnProperty.call(cli.tiapp, 'source-maps')) { // they've explicitly set a value in tiapp.xml
 			this.sourceMaps = cli.tiapp['source-maps'] === true; // respect the tiapp.xml value
+			
 		} else { // otherwise turn on by default for non-production builds
 			this.sourceMaps = this.deployType !== 'production';
 		}
@@ -5619,7 +5620,6 @@ iOSBuilder.prototype.createAssetImageSets = async function createAssetImageSets(
 		});
 	}));
 };
-
 /**
  * This may modify the list of resources to copy!
  * @param {Map.<String,FileInfo>} launchImages launch image assets to handle
@@ -6866,12 +6866,17 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 
 	const plistRegExp = /\.plist$/,
 		pngRegExp = /\.png$/,
+		jsRegExp = /\.js$/,
 		plists = [],
 		pngs = [],
+		jsFiles = [],
 		xcodeAppDir = this.xcodeAppDir + '/',
 		previousBuildFiles = this.previousBuildManifest.files || {},
 		currentBuildFiles = this.currentBuildManifest.files,
 		logger = this.logger;
+	
+	// Gem JavaScript-filer i bygger-konteksten til brug af inkrementel optimering
+	this.jsFiles = jsFiles;
 
 	function add(arr, name, file) {
 		const rel = file.replace(xcodeAppDir, ''),
@@ -6885,7 +6890,7 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 		}
 	}
 
-	// find all plist and png files
+	// find all plist, png and js files
 	(function walk(dir, ignore) {
 		fs.readdirSync(dir).forEach(function (name) {
 			if (!ignore || !ignore.test(name)) {
@@ -6897,11 +6902,22 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 						add(plists, name, file);
 					} else if (pngRegExp.test(name)) {
 						add(pngs, name, file);
+					} else if (jsRegExp.test(name)) {
+						add(jsFiles, name, file);
 					}
 				}
 			}
 		});
 	}(this.xcodeAppDir, /^(PlugIns|Watch|.+\.framework)$/i));
+
+	this.logger.info(__('----- OPTIMIZING -----'));
+	
+	if (jsFiles.length > 0) {
+		this.logger.info(__('Found %s JavaScript file(s) to optimize', jsFiles.length));
+		jsFiles.forEach(file => {
+			this.logger.info(`- ${path.relative(this.projectDir, file)}`);
+		});
+	}
 
 	parallel(this, [
 		function (next) {
@@ -6931,6 +6947,52 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 					}
 					cb();
 				}.bind(this));
+			}.bind(this), next);
+		},
+
+		function (next) {
+			// JavaScript optimering
+			async.each(jsFiles, function (file, cb) {
+				try {
+					// Hent filindhold
+					let content = fs.readFileSync(file, 'utf8');
+					
+					// Hvis filen er tom eller allerede optimeret, spring over
+					if (!content || content.trim() === '') {
+						this.logger.trace(__('Skipping empty file %s', file.cyan));
+						return cb();
+					}
+					
+					// Tjek og optimér filen (Basic minification)
+					if (content.indexOf('\n') !== -1 || content.indexOf('\t') !== -1 || content.indexOf('  ') !== -1) {
+						// Brug en simpel minifiering ved at fjerne ekstra whitespace
+						const originalSize = content.length;
+						content = content.replace(/(\r\n|\n|\r|\t)/gm, ' ');  // Erstat linjeskift med mellemrum
+						content = content.replace(/\s+/g, ' ');  // Erstat gentagne mellemrum med ét
+						content = content.replace(/\/\*.*?\*\//g, '');  // Fjern kommentarer
+						
+						// Gem den optimerede fil
+						fs.writeFileSync(file, content);
+						
+						const newSize = content.length;
+						const savings = Math.round((1 - newSize / originalSize) * 100);
+						
+						this.logger.debug(__('Optimized %s (saved %d%%)', file.cyan, savings));
+					} else {
+						this.logger.trace(__('Skipping already optimized file %s', file.cyan));
+					}
+					
+					// Hvis vi har en incremental builder, opdater sporing
+					if (this.iosIncrementalBuilder) {
+						// Gem den optimerede filens relation til originalen
+						this.iosIncrementalBuilder.trackJsFileForOptimization(file);
+					}
+					
+					cb();
+				} catch (err) {
+					this.logger.error(__('Failed to optimize %s: %s', file, err.message));
+					cb();
+				}
 			}.bind(this), next);
 		}
 	], next);

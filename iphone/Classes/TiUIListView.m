@@ -253,6 +253,9 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
       _tableView.layoutMargins = UIEdgeInsetsZero;
     }
     _tableView.cellLayoutMarginsFollowReadableWidth = NO;
+
+      [self adjustScrollViewInsets];
+    
   }
 
   if ([_tableView superview] != self) {
@@ -260,6 +263,19 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
   }
 
   return _tableView;
+}
+
+- (void)adjustScrollViewInsets
+{
+	id viewProxy = self.proxy;
+	if (viewProxy != nil) {
+		id autoAdjust = [viewProxy valueForUndefinedKey:@"autoAdjustScrollViewInsets"];
+		if ([TiUtils boolValue:autoAdjust def:NO]) {
+			[[self tableView]  setContentInsetAdjustmentBehavior:UIScrollViewContentInsetAdjustmentAlways];
+		} else {
+			[[self tableView]  setContentInsetAdjustmentBehavior:UIScrollViewContentInsetAdjustmentNever];
+		}
+	}
 }
 
 - (void)frameSizeChanged:(CGRect)frame bounds:(CGRect)bounds
@@ -333,23 +349,34 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
 
 - (void)proxyDidRelayout:(id)sender
 {
-  TiThreadPerformOnMainThread(
-      ^{
-        if (sender == _headerViewProxy) {
-          UIView *headerView = [[self tableView] tableHeaderView];
-          [headerView setFrame:[headerView bounds]];
-          [[self tableView] setTableHeaderView:headerView];
-          [((TiUIListViewProxy *)[self proxy]) contentsWillChange];
-        } else if (sender == _footerViewProxy) {
-          UIView *footerView = [[self tableView] tableFooterView];
-          [footerView setFrame:[footerView bounds]];
-          [[self tableView] setTableFooterView:footerView];
-          [((TiUIListViewProxy *)[self proxy]) contentsWillChange];
-        } else if (sender == _pullViewProxy) {
-          pullThreshhold = ([_pullViewProxy view].frame.origin.y - _pullViewWrapper.bounds.size.height);
-        }
-      },
-      NO);
+TiThreadPerformOnMainThread(^{
+		if (sender == _headerViewProxy) {
+			UIView* headerView = [[self tableView] tableHeaderView];
+
+			if (_headerWrapper != nil) {
+				[headerView setFrame:[_headerWrapper view].frame];
+				[[self tableView] setTableHeaderView:headerView];
+			}
+			else {
+				[headerView setFrame:[headerView bounds]];
+
+				[[self tableView] setTableHeaderView:headerView];
+			}
+			[((TiUIListViewProxy*)[self proxy]) contentsWillChange];
+		} else if (sender == _footerViewProxy) {
+			UIView *footerView = [[self tableView] tableFooterView];
+			UIView* firstChild = [footerView.subviews objectAtIndex:0];
+			CGRect footerViewFrame = footerView.frame;
+			footerViewFrame.size.height = firstChild.bounds.size.height;
+			footerView.frame = footerViewFrame;
+
+			[[self tableView] setTableFooterView:footerView];
+			[((TiUIListViewProxy*)[self proxy]) contentsWillChange];
+
+		} else if (sender == _pullViewProxy) {
+			pullThreshhold = ([_pullViewProxy view].frame.origin.y - _pullViewWrapper.bounds.size.height);
+		}
+	},NO);
 }
 
 - (void)setContentOffset_:(id)value withObject:(id)args
@@ -719,8 +746,24 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
 
 - (void)setHeaderTitle_:(id)args
 {
+  NSString *newText = [TiUtils stringValue:args];
+  DebugLog(@"setHeaderTitle_: %@", args);
+  // Optimization: Check if the header is already a label with the same text
+  if ([[_headerWrapper children] count] == 1) {
+    TiViewProxy *currentChild = [[_headerWrapper children] firstObject];
+    if ([currentChild isKindOfClass:[TiUILabelProxy class]]) {
+        NSString *currentText = [(TiUILabelProxy*)currentChild valueForKey:@"text"];
+         // Use isEqualToString for string comparison
+        if ([currentText isEqualToString:newText]) {
+            // Texts match, do nothing to avoid flicker
+            return;
+        }
+    }
+  }
+
+  // If checks failed or no child/different child, proceed as before
   [_headerWrapper removeAllChildren:nil];
-  TiViewProxy *theProxy = [[self class] titleViewForText:[TiUtils stringValue:args] inTable:[self tableView] footer:NO];
+  TiViewProxy *theProxy = [[self class] titleViewForText:newText inTable:[self tableView] footer:NO];
   [_headerWrapper add:theProxy];
 }
 
@@ -744,7 +787,19 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
 - (void)setHeaderView_:(id)args
 {
   ENSURE_SINGLE_ARG_OR_NIL(args, TiViewProxy);
-  [self tableView];
+  [self tableView]; // Ensure table view and _headerWrapper exist
+  DebugLog(@"setHeaderViews_: %@", args);
+  // // Optimization: Check if the new view proxy is the same as the current one
+  // if (args != nil && [[_headerWrapper children] count] == 1) {
+  //   TiViewProxy *currentChild = [[_headerWrapper children] firstObject];
+  //   // Direct pointer comparison: only skip if it's the exact same proxy instance
+  //   if (currentChild == (TiViewProxy *)args) {
+  //       // Same proxy instance, do nothing to avoid flicker
+  //       return;
+  //   }
+  // }
+
+  // If checks failed, different proxy, nil input, or multiple children, proceed as before
   [_headerWrapper removeAllChildren:nil];
   if (args != nil) {
     [_headerWrapper add:(TiViewProxy *)args];
@@ -2004,55 +2059,63 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
   }
 
   BOOL continuousUpdate = [TiUtils boolValue:[self.proxy valueForKey:@"continuousUpdate"] def:NO];
+    
+    
   if (continuousUpdate && [self.proxy _hasListeners:@"scrolling"]) {
-    if ([[self tableView] isDragging] || [[self tableView] isDecelerating]) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        NSArray *indexPaths = [[self tableView] indexPathsForVisibleRows];
-        NSMutableDictionary *eventArgs = [NSMutableDictionary dictionary];
-        TiUIListSectionProxy *section;
-        CGFloat topSpacing = scrollView.contentOffset.y + scrollView.adjustedContentInset.top;
+	if ([[self tableView] isDragging] || [[self tableView] isDecelerating]) {
 
-        NSString *direction = @"unknown";
+		NSArray *indexPaths = [[self tableView] indexPathsForVisibleRows];
+		NSMutableDictionary *eventArgs = [NSMutableDictionary dictionary];
+		TiUIListSectionProxy *section;
+		CGFloat topSpacing = scrollView.contentOffset.y + scrollView.adjustedContentInset.top;
 
-        if (self.lastContentOffset > scrollView.contentOffset.y) {
-          direction = @"down";
-        } else if (self.lastContentOffset < scrollView.contentOffset.y) {
-          direction = @"up";
-        }
-        self.lastContentOffset = scrollView.contentOffset.y;
+		if ([indexPaths count] > 0) {
+		  NSIndexPath *indexPath = [self pathForSearchPath:[indexPaths objectAtIndex:0]];
+		  NSUInteger visibleItemCount = [indexPaths count];
+		  section = [[self listViewProxy] sectionForIndex:[indexPath section]];
+			//NSSet *visibleSections = [NSSet setWithArray:[[self.tableView indexPathsForVisibleRows] valueForKey:@"section"]];
+		    
+			NSArray *visibleSectionsArray = [NSMutableArray array];
+		   
+			for (NSInteger section = 0; section < [TiUtils intValue:[self listViewProxy].sectionCount]; section++) {
+				BOOL isVisible = [[self listViewProxy] isSectionHeaderInSectionWithIndexVisible:@(section)];
+			   
+				if (isVisible) {
+					[visibleSectionsArray addObject:@(section)];
+				}
+			}
+	   
+		  [eventArgs setValue:NUMINTEGER([indexPath row]) forKey:@"firstVisibleItemIndex"];
+		  [eventArgs setValue:NUMUINTEGER(visibleItemCount) forKey:@"visibleItemCount"];
+		  [eventArgs setValue:NUMINTEGER([indexPath section]) forKey:@"firstVisibleSectionIndex"];
+		  [eventArgs setValue:[section itemAtIndex:[indexPath row]] forKey:@"firstVisibleItem"];
+			[eventArgs setValue:visibleSectionsArray forKey:@"visibleSections"];
+		    
+		    
+		   
 
-        if ([indexPaths count] > 0) {
-          NSIndexPath *indexPath = [self pathForSearchPath:[indexPaths objectAtIndex:0]];
-          NSUInteger visibleItemCount = [indexPaths count];
-          section = [[self listViewProxy] sectionForIndex:[indexPath section]];
+		  if (lastVisibleItem != [indexPath row] || lastVisibleSection != [indexPath section] || forceUpdates) {
+			// only log if the item changes or forced
+		   
+			lastVisibleItem = [indexPath row];
+			lastVisibleSection = [indexPath section];
+		  }
+		} else {
+		  section = [[self listViewProxy] sectionForIndex:0];
 
-          [eventArgs setValue:NUMINTEGER([indexPath row]) forKey:@"firstVisibleItemIndex"];
-          [eventArgs setValue:NUMUINTEGER(visibleItemCount) forKey:@"visibleItemCount"];
-          [eventArgs setValue:NUMINTEGER([indexPath section]) forKey:@"firstVisibleSectionIndex"];
-          [eventArgs setValue:section forKey:@"firstVisibleSection"];
-          [eventArgs setValue:[section itemAtIndex:[indexPath row]] forKey:@"firstVisibleItem"];
-          [eventArgs setValue:NUMINTEGER(topSpacing) forKey:@"top"];
-          [eventArgs setValue:direction forKey:@"direction"];
-
-          if (lastVisibleItem != [indexPath row] || lastVisibleSection != [indexPath section] || forceUpdates) {
-            // only log if the item changes or forced
-            [self.proxy fireEvent:@"scrolling" withObject:eventArgs propagate:NO];
-            lastVisibleItem = [indexPath row];
-            lastVisibleSection = [indexPath section];
-          }
-        } else {
-          section = [[self listViewProxy] sectionForIndex:0];
-
-          [eventArgs setValue:NUMINTEGER(-1) forKey:@"firstVisibleItemIndex"];
-          [eventArgs setValue:NUMUINTEGER(0) forKey:@"visibleItemCount"];
-          [eventArgs setValue:NUMINTEGER(0) forKey:@"firstVisibleSectionIndex"];
-          [eventArgs setValue:section forKey:@"firstVisibleSection"];
-          [eventArgs setValue:NUMINTEGER(-1) forKey:@"firstVisibleItem"];
-          [eventArgs setValue:NUMINTEGER(topSpacing) forKey:@"top"];
-          [eventArgs setValue:direction forKey:@"direction"];
-        }
-      });
-    }
+		  [eventArgs setValue:NUMINTEGER(-1) forKey:@"firstVisibleItemIndex"];
+		  [eventArgs setValue:NUMUINTEGER(0) forKey:@"visibleItemCount"];
+		  [eventArgs setValue:NUMINTEGER(0) forKey:@"firstVisibleSectionIndex"];
+		  [eventArgs setValue:NUMINTEGER(-1) forKey:@"firstVisibleItem"];
+		}
+		 
+		  [eventArgs setValue:[[TiPoint alloc] initWithPoint:scrollView.contentOffset] forKey:@"contentOffset"];
+		  [eventArgs setValue:section forKey:@"firstVisibleSection"];
+	  
+		  [self.proxy fireEvent:@"scrolling" withObject:eventArgs propagate:NO];
+		  
+	  
+	}
   }
 }
 
@@ -2139,6 +2202,8 @@ static TiViewProxy *FindViewProxyWithBindIdContainingPoint(UIView *view, CGPoint
     if (direction != nil) {
       [event setValue:direction forKey:@"direction"];
     }
+
+    [event setValue:[[TiPoint alloc] initWithPoint:scrollView.contentOffset] forKey:@"contentOffset"];
 
     [[self proxy] fireEvent:@"scrolling" withObject:event];
     RELEASE_TO_NIL(direction);

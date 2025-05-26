@@ -331,11 +331,15 @@ static NSArray *scrollViewKeySequence;
   [offset release];
 }
 
-- (void)scrollToBottom:(id)unused
+- (void)scrollToBottom:(id)args
 {
+  id arg1 = args;
+  if ([args isKindOfClass:[NSArray class]]) {
+    arg1 = VALUE_AT_INDEX_OR_NIL(args, 0);
+  }
   TiThreadPerformOnMainThread(
       ^{
-        [(TiUIScrollView *)[self view] scrollToBottom];
+        [(TiUIScrollView *)[self view] scrollToBottom:arg1];
       },
       YES);
 }

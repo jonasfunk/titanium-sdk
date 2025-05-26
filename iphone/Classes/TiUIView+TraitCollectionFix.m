@@ -1,13 +1,12 @@
 // Fil: TiUIView+TraitCollectionFix.m
 #import "TiUIView+TraitCollectionFix.h"
-#import <TitaniumKit/TiGradient.h> // Nødvendig for TiGradient
-#import <TitaniumKit/TiProxy.h> // Nødvendig for self.proxy
-#import <TitaniumKit/TiUIView.h> // Vigtigt at importere den originale header
-#import <TitaniumKit/TiUtils.h> // Nødvendig for TiUtils
+#import <TitaniumKit/TiGradient.h>
+#import <TitaniumKit/TiProxy.h>
+#import <TitaniumKit/TiUIView.h>
+#import <TitaniumKit/TiUtils.h>
 
 @implementation TiUIView (TraitCollectionFix)
-
-// Denne implementering vil overskrive den originale i TiUIView
+// This implementation will override the original in TiUIView
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection
 {
   //[super traitCollectionDidChange:previousTraitCollection];

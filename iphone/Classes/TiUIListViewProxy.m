@@ -721,6 +721,30 @@
     pthread_rwlock_unlock(&_markerLock);
   }
 }
+#pragma mark - Layout Trigger
+
+- (void)triggerLayoutUpdate:(id)args
+{
+  TiThreadPerformOnMainThread(
+      ^{
+        if ([self viewInitialized] && self.listView.tableView != nil) {
+          UITableView *tableView = self.listView.tableView;
+          NSUInteger sectionCount = [self.sectionCount unsignedIntegerValue];
+          if (sectionCount > 0) {
+            NSIndexSet *sectionsToReload = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, sectionCount)];
+            [tableView reloadSections:sectionsToReload withRowAnimation:UITableViewRowAnimationNone];
+          } else {
+            // Fallback for empty table? Or just do nothing?
+            // Maybe just begin/end updates is safer here?
+            [tableView beginUpdates];
+            [tableView endUpdates];
+          }
+        } else {
+          DebugLog(@"[WARN] ListView: Attempted to trigger layout update, but view or table view is not initialized.");
+        }
+      },
+      NO);
+}
 
 DEFINE_DEF_BOOL_PROP(willScrollOnStatusTap, YES);
 USE_VIEW_FOR_CONTENT_HEIGHT

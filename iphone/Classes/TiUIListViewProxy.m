@@ -386,50 +386,46 @@
 
 - (BOOL)isSectionHeaderInSectionWithIndexVisible:(id)index
 {
-	ENSURE_SINGLE_ARG(index, NSNumber);
-    
-	UITableView* tableview = self.listView.tableView;
-    
+  ENSURE_SINGLE_ARG(index, NSNumber);
 
-	if(tableview.numberOfSections < [TiUtils intValue:index])
-	{
-		return NO;
-	}
-    
-	CGRect headerRect;
-    
-	// In plain style, the section headers are floating on the top, so the section header is visible if any part of the section's rect is still visible.
-	// In grouped style, the section headers are not floating, so the section header is only visible if it's actualy rect is visible.
-	if (tableview.style == UITableViewStylePlain) {
-		headerRect = [tableview rectForSection:[TiUtils intValue:index]];
-	} else {
-		headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
-	}
-	    
-	// The "visible part" of the tableView is based on the content offset and the tableView's size.
-	CGRect visiblePartOfTableView = CGRectMake(tableview.contentOffset.x, tableview.contentOffset.y, tableview.bounds.size.width, tableview.bounds.size.height);
-	return CGRectIntersectsRect(visiblePartOfTableView, headerRect);
+  UITableView *tableview = self.listView.tableView;
+
+  if (tableview.numberOfSections < [TiUtils intValue:index]) {
+    return NO;
+  }
+
+  CGRect headerRect;
+
+  // In plain style, the section headers are floating on the top, so the section header is visible if any part of the section's rect is still visible.
+  // In grouped style, the section headers are not floating, so the section header is only visible if it's actualy rect is visible.
+  if (tableview.style == UITableViewStylePlain) {
+    headerRect = [tableview rectForSection:[TiUtils intValue:index]];
+  } else {
+    headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
+  }
+
+  // The "visible part" of the tableView is based on the content offset and the tableView's size.
+  CGRect visiblePartOfTableView = CGRectMake(tableview.contentOffset.x, tableview.contentOffset.y, tableview.bounds.size.width, tableview.bounds.size.height);
+  return CGRectIntersectsRect(visiblePartOfTableView, headerRect);
 }
-
 
 - (TiPoint *)getYOffsetForSection:(id)index
 {
-    
-	ENSURE_SINGLE_ARG(index, NSNumber);
-    
-	UITableView* tableview = self.listView.tableView;
-    
-	CGRect headerRect;
-    
-	if (tableview.style == UITableViewStylePlain) {
-		headerRect = [tableview rectForSection:[TiUtils intValue:index]];
-	} else {
-		headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
-	}
-    
-	return  [[[TiPoint alloc] initWithPoint:headerRect.origin] autorelease];
-}
 
+  ENSURE_SINGLE_ARG(index, NSNumber);
+
+  UITableView *tableview = self.listView.tableView;
+
+  CGRect headerRect;
+
+  if (tableview.style == UITableViewStylePlain) {
+    headerRect = [tableview rectForSection:[TiUtils intValue:index]];
+  } else {
+    headerRect = [tableview rectForHeaderInSection:[TiUtils intValue:index]];
+  }
+
+  return [[[TiPoint alloc] initWithPoint:headerRect.origin] autorelease];
+}
 
 - (void)replaceSectionAt:(id)args
 {
@@ -537,6 +533,30 @@
         },
         [NSThread isMainThread]);
   }
+}
+
+- (TiPoint *)contentOffset
+{
+  [super contentOffset];
+
+  __block TiPoint *localContentOffset = nil; // Deklarer som __block lokal variabel
+
+  if ([self viewAttached]) {
+    TiThreadPerformOnMainThread(
+        ^{
+          // Tildel til den lokale variabel
+          localContentOffset = [[TiPoint alloc] initWithPoint:CGPointMake(
+                                                                  self.listView.tableView.contentOffset.x,
+                                                                  self.listView.tableView.contentOffset.y)];
+        },
+        YES); // Sikrer at blokken udføres færdigt før vi fortsætter
+  } else {
+    // Tildel til den lokale variabel
+    localContentOffset = [[TiPoint alloc] initWithPoint:CGPointMake(0, 0)];
+  }
+
+  // Returner den lokale variabel (og autorelease som før)
+  return [localContentOffset autorelease];
 }
 
 - (void)setContentOffset:(id)args

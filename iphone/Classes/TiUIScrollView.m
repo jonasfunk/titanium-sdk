@@ -310,12 +310,8 @@
   [super frameSizeChanged:frame bounds:visibleBounds];
 }
 
-- (void)scrollToBottom
+- (void)scrollToBottom:(id)options
 {
-  /*
-   * Calculate the bottom height & width and, sets the offset from the
-   * content view’s origin that corresponds to the receiver’s origin.
-   */
   UIScrollView *currScrollView = [self scrollView];
 
   CGSize svContentSize = currScrollView.contentSize;
@@ -327,7 +323,9 @@
 
   CGPoint newOffset = CGPointMake(bottomWidth, bottomHeight);
 
-  [currScrollView setContentOffset:newOffset animated:YES];
+  BOOL animated = [TiUtils boolValue:@"animated" properties:options def:(scrollView != nil)];
+
+  [currScrollView setContentOffset:newOffset animated:animated];
 }
 
 - (void)scrollToTop

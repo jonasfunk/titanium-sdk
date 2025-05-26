@@ -53,7 +53,7 @@
 #ifndef TI_USE_AUTOLAYOUT
 - (UIView *)wrapperView;
 #endif
-- (void)scrollToBottom;
+- (void)scrollToBottom:(id)options;
 - (void)scrollToTop;
 
 @end

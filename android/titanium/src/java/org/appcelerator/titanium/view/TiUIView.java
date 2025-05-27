@@ -347,6 +347,12 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		nativeView.setOnFocusChangeListener(this);
 
 		applyAccessibilityProperties();
+		
+		// Apply any pending clipMode settings that were stored during creation
+		if (proxy.hasProperty(TiC.PROPERTY_CLIP_MODE)) {
+			int clipMode = TiConvert.toInt(proxy.getProperty(TiC.PROPERTY_CLIP_MODE), UIModule.CLIP_MODE_DEFAULT);
+			setClipMode(clipMode);
+		}
 	}
 
 	protected void setLayoutParams(LayoutParams layoutParams)
@@ -1215,8 +1221,16 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 
 		TiViewProxy currentProxy = proxy;
 		while (currentProxy.getParent() != null) {
-			if (currentProxy.getOrCreateView().getOuterView() instanceof ViewGroup viewGroup) {
-				viewGroup.setClipChildren(clipMode != UIModule.CLIP_MODE_DISABLED);
+			TiUIView uiView = currentProxy.getOrCreateView();
+			if (uiView != null) {
+				View outerView = uiView.getOuterView();
+				if (outerView instanceof ViewGroup viewGroup) {
+					viewGroup.setClipChildren(clipMode != UIModule.CLIP_MODE_DISABLED);
+				}
+			} else {
+				// Store clipMode for later application when view is created
+				// This is particularly important for ListView header/footer views
+				currentProxy.setProperty(TiC.PROPERTY_CLIP_MODE, clipMode);
 			}
 			currentProxy = currentProxy.getParent();
 			if (currentProxy.getApiName().equals("Ti.UI.Window")) {

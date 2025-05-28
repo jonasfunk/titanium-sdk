@@ -14,6 +14,7 @@ import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.view.TiUIView;
 
 import android.app.Activity;
+import android.view.View;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 @Kroll.proxy(creatableInModule = AndroidModule.class)

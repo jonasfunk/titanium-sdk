@@ -347,12 +347,6 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		nativeView.setOnFocusChangeListener(this);
 
 		applyAccessibilityProperties();
-		
-		// Apply any pending clipMode settings that were stored during creation
-		if (proxy.hasProperty(TiC.PROPERTY_CLIP_MODE)) {
-			int clipMode = TiConvert.toInt(proxy.getProperty(TiC.PROPERTY_CLIP_MODE), UIModule.CLIP_MODE_DEFAULT);
-			setClipMode(clipMode);
-		}
 	}
 
 	protected void setLayoutParams(LayoutParams layoutParams)

@@ -28,8 +28,7 @@ import ti.modules.titanium.ui.widget.TiUIScrollView;
 		TiC.PROPERTY_SCROLL_TYPE,
 		TiC.PROPERTY_CAN_CANCEL_EVENTS,
 		TiC.PROPERTY_OVER_SCROLL_MODE,
-		TiC.PROPERTY_REFRESH_CONTROL,
-		TiC.PROPERTY_CONTENT_INSETS
+		TiC.PROPERTY_REFRESH_CONTROL
 	})
 public class ScrollViewProxy extends TiViewProxy
 {
@@ -154,6 +153,9 @@ public class ScrollViewProxy extends TiViewProxy
 			return;
 		}
 		
+		// Store as property for consistency
+		setProperty(TiC.PROPERTY_CONTENT_INSETS, insets);
+		
 		// Call the existing implementation in TiUIScrollView
 		getScrollView().setContentInsets(insets);
 	}
@@ -169,7 +171,16 @@ public class ScrollViewProxy extends TiViewProxy
 		// Optional animated parameter for future compatibility (currently not used on Android)
 		// HashMap options = args.length > 1 && args[1] instanceof HashMap ? (HashMap) args[1] : null;
 		
+		// Store as property for consistency
+		setProperty(TiC.PROPERTY_CONTENT_INSETS, insets);
+		
 		getScrollView().setContentInsets(insets);
+	}
+
+	@Kroll.getProperty
+	public Object getContentInsets()
+	{
+		return getProperty(TiC.PROPERTY_CONTENT_INSETS);
 	}
 
 	public void handleScrollTo(int x, int y, boolean smoothScroll)

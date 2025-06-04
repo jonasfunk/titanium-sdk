@@ -373,6 +373,24 @@ static NSArray *scrollViewKeySequence;
       YES);
 }
 
+- (void)setContentInsets:(id)args
+{
+  id arg1;
+  id arg2;
+  if ([args isKindOfClass:[NSDictionary class]]) {
+    arg1 = args;
+    arg2 = nil;
+  } else {
+    arg1 = [args objectAtIndex:0];
+    arg2 = [args count] > 1 ? [args objectAtIndex:1] : nil;
+  }
+  TiThreadPerformOnMainThread(
+      ^{
+        [(TiUIScrollView *)[self view] setContentInsets_:arg1 withObject:arg2];
+      },
+      [NSThread isMainThread]);
+}
+
 - (void)setZoomScale:(id)args
 {
   id arg1 = args;

@@ -425,6 +425,21 @@
   [[self scrollView] setContentOffset:newOffset animated:animated];
 }
 
+- (void)setContentInsets_:(id)value withObject:(id)props
+{
+  UIEdgeInsets insets = [TiUtils contentInsets:value];
+  BOOL animated = [TiUtils boolValue:@"animated" properties:props def:NO];
+  void (^setInset)(void) = ^{
+    [[self scrollView] setContentInset:insets];
+  };
+  if (animated) {
+    double duration = [TiUtils doubleValue:@"duration" properties:props def:300] / 1000;
+    [UIView animateWithDuration:duration animations:setInset];
+  } else {
+    setInset();
+  }
+}
+
 - (void)setZoomScale_:(id)value withObject:(id)property
 {
   CGFloat scale = [TiUtils floatValue:value def:1.0];

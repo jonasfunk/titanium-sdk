@@ -266,6 +266,10 @@ public class TiUIListView extends TiUIView
 		if (name.equals(TiC.PROPERTY_PADDING)) {
 			setPadding((HashMap) value);
 		}
+
+		if (name.equals(TiC.PROPERTY_CONTENT_INSETS)) {
+			setContentInsets((HashMap) value);
+		}
 	}
 
 	private void setPadding(HashMap<String, Object> d)
@@ -296,6 +300,40 @@ public class TiUIListView extends TiUIView
 		}
 
 		this.listView.getRecyclerView().setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
+	}
+
+	private void setContentInsets(HashMap<String, Object> d)
+	{
+		int paddingLeft = this.listView.getRecyclerView().getPaddingLeft();
+		int paddingRight = this.listView.getRecyclerView().getPaddingRight();
+		int paddingTop = this.listView.getRecyclerView().getPaddingTop();
+		int paddingBottom = this.listView.getRecyclerView().getPaddingBottom();
+
+		if (d.containsKey(TiC.PROPERTY_LEFT)) {
+			paddingLeft = TiConvert.toTiDimension(TiConvert.toInt(d.get(TiC.PROPERTY_LEFT), 0),
+				TiDimension.TYPE_LEFT).getAsPixels(this.listView);
+		}
+
+		if (d.containsKey(TiC.PROPERTY_RIGHT)) {
+			paddingRight = TiConvert.toTiDimension(TiConvert.toInt(d.get(TiC.PROPERTY_RIGHT), 0),
+				TiDimension.TYPE_RIGHT).getAsPixels(this.listView);
+		}
+
+		if (d.containsKey(TiC.PROPERTY_TOP)) {
+			paddingTop = TiConvert.toTiDimension(TiConvert.toInt(d.get(TiC.PROPERTY_TOP), 0),
+				TiDimension.TYPE_TOP).getAsPixels(this.listView);
+		}
+
+		if (d.containsKey(TiC.PROPERTY_BOTTOM)) {
+			paddingBottom = TiConvert.toTiDimension(TiConvert.toInt(d.get(TiC.PROPERTY_BOTTOM), 0),
+				TiDimension.TYPE_BOTTOM).getAsPixels(this.listView);
+		}
+
+		this.listView.getRecyclerView().setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
+		
+		// Set clipChildren to false to prevent content clipping when using insets
+		this.listView.getRecyclerView().setClipToPadding(false);
+		this.listView.getRecyclerView().setClipChildren(false);
 	}
 
 	/**

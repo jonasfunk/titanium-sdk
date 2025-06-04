@@ -146,8 +146,8 @@ public class ScrollViewProxy extends TiViewProxy
 		handleSetContentOffsetAnimated(offset, animated);
 	}
 
-	@Kroll.method
-	public void setContentInsets(Object insets, @Kroll.argument(optional = true) HashMap args)
+	@Kroll.setProperty
+	public void setContentInsets(Object insets)
 	{
 		if (insets == null) {
 			return;

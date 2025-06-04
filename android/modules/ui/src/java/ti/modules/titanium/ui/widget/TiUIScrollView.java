@@ -745,6 +745,60 @@ public class TiUIScrollView extends TiUIView
 		}
 	}
 
+	/**
+	 * Set content insets from dictionary.
+	 *
+	 * @param hashMap Dictionary containing top, left, bottom, right insets.
+	 */
+	public void setContentInsets(Object hashMap)
+	{
+		if (hashMap instanceof HashMap) {
+			KrollDict contentInsets = new KrollDict((HashMap) hashMap);
+			View view = this.scrollView;
+			
+			if (view != null) {
+				int paddingLeft = view.getPaddingLeft();
+				int paddingTop = view.getPaddingTop();
+				int paddingRight = view.getPaddingRight();
+				int paddingBottom = view.getPaddingBottom();
+
+				if (contentInsets.containsKeyAndNotNull(TiC.PROPERTY_LEFT)) {
+					paddingLeft = TiConvert.toTiDimension(contentInsets, TiC.PROPERTY_LEFT, TiDimension.TYPE_LEFT)
+						.getAsPixels(view);
+				}
+				if (contentInsets.containsKeyAndNotNull(TiC.PROPERTY_TOP)) {
+					paddingTop = TiConvert.toTiDimension(contentInsets, TiC.PROPERTY_TOP, TiDimension.TYPE_TOP)
+						.getAsPixels(view);
+				}
+				if (contentInsets.containsKeyAndNotNull(TiC.PROPERTY_RIGHT)) {
+					paddingRight = TiConvert.toTiDimension(contentInsets, TiC.PROPERTY_RIGHT, TiDimension.TYPE_RIGHT)
+						.getAsPixels(view);
+				}
+				if (contentInsets.containsKeyAndNotNull(TiC.PROPERTY_BOTTOM)) {
+					paddingBottom = TiConvert.toTiDimension(contentInsets, TiC.PROPERTY_BOTTOM, TiDimension.TYPE_BOTTOM)
+						.getAsPixels(view);
+				}
+
+				view.setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
+				
+				// Set clipChildren to false to prevent content clipping when using insets
+				if (view instanceof ViewGroup) {
+					((ViewGroup) view).setClipChildren(false);
+					((ViewGroup) view).setClipToPadding(false);
+				}
+				
+				// Also apply to the layout if it's a scroll view with internal layout
+				TiScrollViewLayout layout = getLayout();
+				if (layout != null) {
+					layout.setClipChildren(false);
+					layout.setClipToPadding(false);
+				}
+			}
+		} else {
+			Log.e(TAG, "ContentInsets must be an instance of HashMap");
+		}
+	}
+
 	@Override
 	public void propertyChanged(String key, Object oldValue, Object newValue, KrollProxy proxy)
 	{
@@ -763,6 +817,8 @@ public class TiUIScrollView extends TiUIView
 			} else if (view instanceof TiVerticalScrollView) {
 				((TiVerticalScrollView) view).getLayout().setCanCancelEvents(canCancelEvents);
 			}
+		} else if (key.equals(TiC.PROPERTY_CONTENT_INSETS)) {
+			setContentInsets(newValue);
 		} else if (TiC.PROPERTY_SCROLLING_ENABLED.equals(key)) {
 			setScrollingEnabled(newValue);
 		} else if (TiC.PROPERTY_REFRESH_CONTROL.equals(key)) {

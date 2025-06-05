@@ -669,6 +669,7 @@ public class TiC
 	public static final String PROPERTY_PROVIDER = "provider";
 	public static final String PROPERTY_REFERRED_BY = "referredBy";
 	public static final String PROPERTY_REFRESH_CONTROL = "refreshControl";
+	public static final String PROPERTY_REFRESH_CONTROL_OFFSET = "offset";
 	public static final String PROPERTY_REGION = "region";
 	public static final String PROPERTY_REGION1 = "region1";
 	public static final String PROPERTY_REGION2 = "region2";

@@ -227,7 +227,17 @@ public class TiUIScrollView extends TiUIView
 						return this.parentContentWidth;
 					}
 				} else if (value instanceof Number) {
-					return ((Number) value).intValue();
+					int type = TiDimension.TYPE_UNDEFINED;
+					if (TiC.PROPERTY_CONTENT_HEIGHT.equals(property)) {
+						type = TiDimension.TYPE_HEIGHT;
+					} else if (TiC.PROPERTY_CONTENT_WIDTH.equals(property)) {
+						type = TiDimension.TYPE_WIDTH;
+					}
+					TiDimension dimension = TiConvert.toTiDimension(value, type);
+					if (dimension != null) {
+						return dimension.getAsPixels(this);
+					}
+					return AUTO;
 				} else {
 					int type = 0;
 					TiDimension dimension;
@@ -319,10 +329,11 @@ public class TiUIScrollView extends TiUIView
 
 			// Apply the "contentWidth" and "contentHeight" sizes to the child instead, if provided.
 			int contentWidth = getContentProperty(TiC.PROPERTY_CONTENT_WIDTH);
+			int contentHeight = getContentProperty(TiC.PROPERTY_CONTENT_HEIGHT);
+
 			if ((contentWidth != AUTO) && (contentWidth >= this.parentContentWidth)) {
 				widthMeasureSpec = MeasureSpec.makeMeasureSpec(contentWidth, MeasureSpec.EXACTLY);
 			}
-			int contentHeight = getContentProperty(TiC.PROPERTY_CONTENT_HEIGHT);
 			if ((contentHeight != AUTO) && (contentHeight >= this.parentContentHeight)) {
 				heightMeasureSpec = MeasureSpec.makeMeasureSpec(contentHeight, MeasureSpec.EXACTLY);
 			}
@@ -507,9 +518,9 @@ public class TiUIScrollView extends TiUIView
 			// Store this view's new size, minus the padding.
 			// Must be assigned before calling onMeasure() below.
 			layout.setParentContentWidth(MeasureSpec.getSize(widthMeasureSpec)
-										 - (getPaddingLeft() + getPaddingRight()));
+				- (getPaddingLeft() + getPaddingRight()));
 			layout.setParentContentHeight(MeasureSpec.getSize(heightMeasureSpec)
-										  - (getPaddingTop() + getPaddingBottom()));
+				- (getPaddingTop() + getPaddingBottom()));
 
 			// If the scroll view container has a fixed size (ie: not using AT_MOST/WRAP_CONTENT),
 			// then set up the scrollable content area to be at least the size of the container.
@@ -642,9 +653,9 @@ public class TiUIScrollView extends TiUIView
 			// Store this view's new size, minus the padding.
 			// Must be assigned before calling onMeasure() below.
 			layout.setParentContentWidth(MeasureSpec.getSize(widthMeasureSpec)
-										 - (getPaddingLeft() + getPaddingRight()));
+				- (getPaddingLeft() + getPaddingRight()));
 			layout.setParentContentHeight(MeasureSpec.getSize(heightMeasureSpec)
-										  - (getPaddingTop() + getPaddingBottom()));
+				- (getPaddingTop() + getPaddingBottom()));
 
 			// If the scroll view container has a fixed size (ie: not using AT_MOST/WRAP_CONTENT),
 			// then set up the scrollable content area to be at least the size of the container.

@@ -54,6 +54,22 @@ static NSArray *scrollViewKeySequence;
   return [contentOffset autorelease];
 }
 
+- (id)contentInsets
+{
+  if (![self viewAttached]) {
+    return [TiUtils dictionaryFromEdgeInsets:UIEdgeInsetsZero];
+  }
+
+  __block NSDictionary *result = nil;
+  TiThreadPerformOnMainThread(
+      ^{
+        result = [[TiUtils dictionaryFromEdgeInsets:[[(TiUIScrollView *)self.view scrollView] contentInset]] retain];
+      },
+      YES);
+
+  return [result autorelease];
+}
+
 - (void)windowWillOpen
 {
   [super windowWillOpen];

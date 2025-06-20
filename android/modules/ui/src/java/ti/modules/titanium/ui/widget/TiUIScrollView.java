@@ -810,6 +810,20 @@ public class TiUIScrollView extends TiUIView
 		}
 	}
 
+	public KrollDict getContentInsets()
+	{
+		View view = this.scrollView;
+		if (view == null) {
+			return new KrollDict();
+		}
+		KrollDict d = new KrollDict();
+		d.put(TiC.PROPERTY_LEFT, view.getPaddingLeft());
+		d.put(TiC.PROPERTY_TOP, view.getPaddingTop());
+		d.put(TiC.PROPERTY_RIGHT, view.getPaddingRight());
+		d.put(TiC.PROPERTY_BOTTOM, view.getPaddingBottom());
+		return d;
+	}
+
 	@Override
 	public void propertyChanged(String key, Object oldValue, Object newValue, KrollProxy proxy)
 	{

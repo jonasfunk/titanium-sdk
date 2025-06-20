@@ -180,7 +180,7 @@ public class ScrollViewProxy extends TiViewProxy
 	@Kroll.getProperty
 	public Object getContentInsets()
 	{
-		return getProperty(TiC.PROPERTY_CONTENT_INSETS);
+		return getScrollView().getContentInsets();
 	}
 
 	public void handleScrollTo(int x, int y, boolean smoothScroll)

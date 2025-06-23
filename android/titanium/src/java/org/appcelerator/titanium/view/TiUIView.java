@@ -782,8 +782,8 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 				layoutParams.optionZIndex = 0;
 			}
 			layoutNativeView(true);
-		} else if (key.equals(TiC.PROPERTY_FOCUSABLE) && newValue != null) {
-			registerForKeyPress(nativeView, TiConvert.toBoolean(newValue, false));
+		} else if (key.equals(TiC.PROPERTY_FOCUSABLE)) {
+			getOuterView().setFocusable(TiConvert.toBoolean(newValue, false));
 		} else if (key.equals(TiC.PROPERTY_TOUCH_ENABLED)) {
 			nativeView.setEnabled(TiConvert.toBoolean(newValue));
 			doSetClickable(TiConvert.toBoolean(newValue));
@@ -928,16 +928,21 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 				}
 			}
 		} else if (key.equals(TiC.PROPERTY_TRANSLATION_X)) {
-			if (getOuterView() != null) {
-				ViewCompat.setTranslationX(getOuterView(), TiConvert.toFloat(newValue));
+			TiDimension val = TiConvert.toTiDimension(newValue, TiDimension.TYPE_WIDTH);
+			if (val != null) {
+				ViewCompat.setTranslationX(getOuterView(), (float) val.getPixels(getOuterView()));
 			}
 		} else if (key.equals(TiC.PROPERTY_TRANSLATION_Y)) {
-			if (getOuterView() != null) {
-				ViewCompat.setTranslationY(getOuterView(), TiConvert.toFloat(newValue));
+			TiDimension val = TiConvert.toTiDimension(newValue, TiDimension.TYPE_HEIGHT);
+			if (val != null) {
+				ViewCompat.setTranslationY(getOuterView(), (float) val.getPixels(getOuterView()));
 			}
 		} else if (key.equals(TiC.PROPERTY_TRANSLATION_Z)) {
-			if (getOuterView() != null) {
-				ViewCompat.setTranslationZ(getOuterView(), TiConvert.toFloat(newValue));
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+				TiDimension val = TiConvert.toTiDimension(newValue, TiDimension.TYPE_UNDEFINED);
+				if (val != null) {
+					nativeView.setTranslationZ((float) val.getPixels(getOuterView()));
+				}
 			}
 		} else if (key.equals(TiC.PROPERTY_TRANSITION_NAME)) {
 			if (nativeView != null) {
@@ -952,9 +957,7 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 				ViewCompat.setScaleY(getOuterView(), TiConvert.toFloat(newValue));
 			}
 		} else if (key.equals(TiC.PROPERTY_ROTATION)) {
-			if (getOuterView() != null) {
-				ViewCompat.setRotation(getOuterView(), TiConvert.toFloat(newValue));
-			}
+			getOuterView().setRotation(TiConvert.toFloat(newValue));
 		} else if (key.equals(TiC.PROPERTY_ROTATION_X)) {
 			if (getOuterView() != null) {
 				ViewCompat.setRotationX(getOuterView(), TiConvert.toFloat(newValue));
@@ -1123,11 +1126,18 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		}
 
 		if (d.containsKey(TiC.PROPERTY_TRANSLATION_X) && !nativeViewNull) {
-			ViewCompat.setTranslationX(nativeView, TiConvert.toFloat(d, TiC.PROPERTY_TRANSLATION_X));
+			Object newValue = d.get(TiC.PROPERTY_TRANSLATION_X);
+			TiDimension val = TiConvert.toTiDimension(newValue, TiDimension.TYPE_WIDTH);
+			if (val != null) {
+				ViewCompat.setTranslationX(nativeView, (float) val.getPixels(nativeView));
+			}
 		}
-
 		if (d.containsKey(TiC.PROPERTY_TRANSLATION_Y) && !nativeViewNull) {
-			ViewCompat.setTranslationY(nativeView, TiConvert.toFloat(d, TiC.PROPERTY_TRANSLATION_Y));
+			Object newValue = d.get(TiC.PROPERTY_TRANSLATION_Y);
+			TiDimension val = TiConvert.toTiDimension(newValue, TiDimension.TYPE_HEIGHT);
+			if (val != null) {
+				ViewCompat.setTranslationY(nativeView, (float) val.getPixels(nativeView));
+			}
 		}
 
 		if (d.containsKey(TiC.PROPERTY_TRANSLATION_Z) && !nativeViewNull) {

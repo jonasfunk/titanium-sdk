@@ -40,6 +40,7 @@ import android.graphics.Bitmap.Config;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Message;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 
@@ -82,8 +83,6 @@ import android.view.ViewAnimationUtils;
 	TiC.PROPERTY_TRANSFORM,
 	TiC.PROPERTY_ELEVATION,
 	TiC.PROPERTY_VIEW_SHADOW_COLOR,
-	TiC.PROPERTY_TRANSLATION_X,
-	TiC.PROPERTY_TRANSLATION_Y,
 	TiC.PROPERTY_TRANSLATION_Z,
 	TiC.PROPERTY_ROTATION,
 	TiC.PROPERTY_ROTATION_X,
@@ -357,6 +356,38 @@ public abstract class TiViewProxy extends KrollProxy
 	public void setHeight(Object height)
 	{
 		setPropertyAndFire(TiC.PROPERTY_HEIGHT, height);
+	}
+
+	@Kroll.getProperty
+	public float getTranslationX()
+	{
+		if (view != null && view.getNativeView() != null) {
+			DisplayMetrics metrics = TiApplication.getInstance().getResources().getDisplayMetrics();
+			return view.getNativeView().getTranslationX() / metrics.density;
+		}
+		return TiConvert.toFloat(getProperty(TiC.PROPERTY_TRANSLATION_X), 0);
+	}
+
+	@Kroll.setProperty
+	public void setTranslationX(Object value)
+	{
+		setPropertyAndFire(TiC.PROPERTY_TRANSLATION_X, value);
+	}
+
+	@Kroll.getProperty
+	public float getTranslationY()
+	{
+		if (view != null && view.getNativeView() != null) {
+			DisplayMetrics metrics = TiApplication.getInstance().getResources().getDisplayMetrics();
+			return view.getNativeView().getTranslationY() / metrics.density;
+		}
+		return TiConvert.toFloat(getProperty(TiC.PROPERTY_TRANSLATION_Y), 0);
+	}
+
+	@Kroll.setProperty
+	public void setTranslationY(Object value)
+	{
+		setPropertyAndFire(TiC.PROPERTY_TRANSLATION_Y, value);
 	}
 
 	@Kroll.getProperty

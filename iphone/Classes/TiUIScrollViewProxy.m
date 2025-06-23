@@ -11,7 +11,12 @@
 
 #import <TitaniumKit/TiUtils.h>
 
-@implementation TiUIScrollViewProxy
+@implementation TiUIScrollViewProxy {
+  @private
+  TiPoint *contentOffset;
+  BOOL canFireScrollStart;
+  BOOL canFireScrollEnd;
+}
 
 static NSArray *scrollViewKeySequence;
 - (NSArray *)keySequence
@@ -30,6 +35,8 @@ static NSArray *scrollViewKeySequence;
   [self initializeProperty:@"zoomScale" defaultValue:NUMFLOAT(1.0)];
   [self initializeProperty:@"canCancelEvents" defaultValue:NUMBOOL(YES)];
   [self initializeProperty:@"scrollingEnabled" defaultValue:NUMBOOL(YES)];
+  canFireScrollEnd = NO;
+  canFireScrollStart = YES;
   [super _initWithProperties:properties];
 }
 
@@ -427,14 +434,32 @@ static NSArray *scrollViewKeySequence;
       YES);
 }
 
+- (void)fireScrollEnd:(UIScrollView *)scrollView
+{
+  if (canFireScrollEnd) {
+    canFireScrollEnd = NO;
+    canFireScrollStart = YES;
+    if ([self _hasListeners:@"scrollend"]) {
+      [self fireEvent:@"scrollend" withObject:nil];
+    }
+  }
+}
+
+- (void)fireScrollStart:(UIScrollView *)scrollView
+{
+  if (canFireScrollStart) {
+    canFireScrollStart = NO;
+    canFireScrollEnd = YES;
+    // The user didn't request scrollstart, but it's needed to control scrollend
+  }
+}
+
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView_ // scrolling has ended
 {
   if ([self _hasListeners:@"scrollEnd"]) { // TODO: Deprecate old event.
     [self fireEvent:@"scrollEnd" withObject:nil];
   }
-  if ([self _hasListeners:@"scrollend"]) {
-    [self fireEvent:@"scrollend" withObject:nil];
-  }
+  [self fireScrollEnd:scrollView_];
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
@@ -468,6 +493,7 @@ static NSArray *scrollViewKeySequence;
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
 {
+  [self fireScrollStart:scrollView];
   CGPoint offset = [scrollView contentOffset];
   NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
                                          NUMFLOAT(offset.x), @"x",
@@ -486,6 +512,9 @@ static NSArray *scrollViewKeySequence;
 // listerner which tells when dragging ended in the scroll view.
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate
 {
+  if (!decelerate) {
+    [self fireScrollEnd:scrollView];
+  }
   CGPoint offset = [scrollView contentOffset];
   NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
                                          NUMFLOAT(offset.x), @"x",

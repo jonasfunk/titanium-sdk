@@ -388,6 +388,7 @@ public class TiUIScrollView extends TiUIView
 	private class TiVerticalScrollView extends NestedScrollView
 	{
 		private TiScrollViewLayout layout;
+		private Runnable scrollEndRunnable;
 
 		public TiVerticalScrollView(Context context, LayoutArrangement arrangement)
 		{
@@ -507,6 +508,26 @@ public class TiUIScrollView extends TiUIView
 			data.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
 
 			getProxy().fireEvent(TiC.EVENT_SCROLL, data);
+
+			// Fire scrollend event after scroll stops
+			if (getProxy().hasListeners(TiC.EVENT_SCROLLEND)) {
+				if (scrollEndRunnable != null) {
+					removeCallbacks(scrollEndRunnable);
+				}
+				scrollEndRunnable = new Runnable() {
+					@Override
+					public void run()
+					{
+						isScrolling = false;
+						KrollDict scrollEndData = new KrollDict();
+						scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
+						scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
+						scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
+						getProxy().fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+					}
+				};
+				postDelayed(scrollEndRunnable, 200);
+			}
 		}
 
 		@Override
@@ -552,6 +573,7 @@ public class TiUIScrollView extends TiUIView
 	private class TiHorizontalScrollView extends HorizontalScrollView
 	{
 		private TiScrollViewLayout layout;
+		private Runnable scrollEndRunnable;
 
 		public TiHorizontalScrollView(Context context, LayoutArrangement arrangement)
 		{
@@ -642,6 +664,26 @@ public class TiUIScrollView extends TiUIView
 			data.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
 
 			getProxy().fireEvent(TiC.EVENT_SCROLL, data);
+
+			// Fire scrollend event after scroll stops
+			if (getProxy().hasListeners(TiC.EVENT_SCROLLEND)) {
+				if (scrollEndRunnable != null) {
+					removeCallbacks(scrollEndRunnable);
+				}
+				scrollEndRunnable = new Runnable() {
+					@Override
+					public void run()
+					{
+						isScrolling = false;
+						KrollDict scrollEndData = new KrollDict();
+						scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
+						scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
+						scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
+						getProxy().fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+					}
+				};
+				postDelayed(scrollEndRunnable, 200);
+			}
 		}
 
 		@Override

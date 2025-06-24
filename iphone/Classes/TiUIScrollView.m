@@ -422,7 +422,7 @@
 {
   ENSURE_TYPE_OR_NIL(property, NSDictionary);
   CGPoint newOffset = [TiUtils pointValue:value];
-  BOOL animated = [TiUtils boolValue:@"animated" fromProperties:property def:YES];
+  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:YES];
 
   [[self scrollView] setContentOffset:newOffset animated:animated];
 }
@@ -430,10 +430,10 @@
 - (void)setContentInsets_:(id)value withObject:(id)property
 {
   ENSURE_TYPE_OR_NIL(property, NSDictionary);
-  UIEdgeInsets newInsets = [TiUtils edgeInsetsValue:value];
-  BOOL animated = [TiUtils boolValue:@"animated" fromProperties:property def:YES];
+  UIEdgeInsets newInsets = [TiUtils contentInsets:value];
+  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:YES];
   if (animated) {
-    [UIView animateWithDuration:[TiUtils doubleValue:@"duration" fromProperties:property def:0.3]
+    [UIView animateWithDuration:[TiUtils doubleValue:@"duration" properties:property def:0.3]
                      animations:^{
                        [[self scrollView] setContentInset:newInsets];
                      }];

@@ -859,10 +859,17 @@ public class TiUIScrollView extends TiUIView
 			return new KrollDict();
 		}
 		KrollDict d = new KrollDict();
-		d.put(TiC.PROPERTY_LEFT, view.getPaddingLeft());
-		d.put(TiC.PROPERTY_TOP, view.getPaddingTop());
-		d.put(TiC.PROPERTY_RIGHT, view.getPaddingRight());
-		d.put(TiC.PROPERTY_BOTTOM, view.getPaddingBottom());
+		
+		// Convert pixel values back to DIP using TiDimension
+		TiDimension leftDimension = new TiDimension(view.getPaddingLeft(), TiDimension.TYPE_LEFT);
+		TiDimension topDimension = new TiDimension(view.getPaddingTop(), TiDimension.TYPE_TOP);
+		TiDimension rightDimension = new TiDimension(view.getPaddingRight(), TiDimension.TYPE_RIGHT);
+		TiDimension bottomDimension = new TiDimension(view.getPaddingBottom(), TiDimension.TYPE_BOTTOM);
+		
+		d.put(TiC.PROPERTY_LEFT, leftDimension.getAsDefault(view));
+		d.put(TiC.PROPERTY_TOP, topDimension.getAsDefault(view));
+		d.put(TiC.PROPERTY_RIGHT, rightDimension.getAsDefault(view));
+		d.put(TiC.PROPERTY_BOTTOM, bottomDimension.getAsDefault(view));
 		return d;
 	}
 

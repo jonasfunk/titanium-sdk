@@ -420,28 +420,31 @@
 
 - (void)setContentOffset_:(id)value withObject:(id)property
 {
+  ENSURE_TYPE_OR_NIL(property, NSDictionary);
   CGPoint newOffset = [TiUtils pointValue:value];
-  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:(scrollView != nil)];
+  BOOL animated = [TiUtils boolValue:@"animated" fromProperties:property def:YES];
+
   [[self scrollView] setContentOffset:newOffset animated:animated];
 }
 
-- (void)setContentInsets_:(id)value withObject:(id)props
+- (void)setContentInsets_:(id)value withObject:(id)property
 {
-  UIEdgeInsets insets = [TiUtils contentInsets:value];
-  BOOL animated = [TiUtils boolValue:@"animated" properties:props def:NO];
-  void (^setInset)(void) = ^{
-    [[self scrollView] setContentInset:insets];
-  };
+  ENSURE_TYPE_OR_NIL(property, NSDictionary);
+  UIEdgeInsets newInsets = [TiUtils edgeInsetsValue:value];
+  BOOL animated = [TiUtils boolValue:@"animated" fromProperties:property def:YES];
   if (animated) {
-    double duration = [TiUtils doubleValue:@"duration" properties:props def:300] / 1000;
-    [UIView animateWithDuration:duration animations:setInset];
+    [UIView animateWithDuration:[TiUtils doubleValue:@"duration" fromProperties:property def:0.3]
+                     animations:^{
+                       [[self scrollView] setContentInset:newInsets];
+                     }];
   } else {
-    setInset();
+    [[self scrollView] setContentInset:newInsets];
   }
 }
 
 - (void)setZoomScale_:(id)value withObject:(id)property
 {
+  ENSURE_TYPE_OR_NIL(property, NSDictionary);
   CGFloat scale = [TiUtils floatValue:value def:1.0];
   BOOL animated = [TiUtils boolValue:@"animated" properties:property def:NO];
   [[self scrollView] setZoomScale:scale animated:animated];

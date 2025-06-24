@@ -1847,10 +1847,20 @@ AndroidBuilder.prototype.checkIfShouldForceRebuild = function checkIfShouldForce
 		return true;
 	}
 
-	if (this.tiapp.version !== manifest.version) {
-		this.logger.info(__('Forcing rebuild: tiapp.xml version changed since last build'));
-		this.logger.info('  ' + __('Was: %s', manifest.version));
-		this.logger.info('  ' + __('Now: %s', this.tiapp.version));
+	// Compare semantic versions (major.minor.patch) without build numbers to avoid unnecessary rebuilds
+	let currentSemanticVersion = this.tiapp.version;
+	let manifestSemanticVersion = manifest.version;
+	try {
+		currentSemanticVersion = version.format(this.tiapp.version, 0, 3);
+		manifestSemanticVersion = version.format(manifest.version, 0, 3);
+	} catch (ex) {
+		// If version formatting fails, fall back to string comparison
+	}
+
+	if (currentSemanticVersion !== manifestSemanticVersion) {
+		this.logger.info(__('Forcing rebuild: tiapp.xml semantic version changed since last build'));
+		this.logger.info('  ' + __('Was: %s', manifestSemanticVersion));
+		this.logger.info('  ' + __('Now: %s', currentSemanticVersion));
 		return true;
 	}
 

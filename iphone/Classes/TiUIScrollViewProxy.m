@@ -13,7 +13,6 @@
 
 @implementation TiUIScrollViewProxy {
   @private
-  TiPoint *contentOffset;
   BOOL canFireScrollStart;
   BOOL canFireScrollEnd;
 }
@@ -407,11 +406,16 @@ static NSArray *scrollViewKeySequence;
     arg1 = [args objectAtIndex:0];
     arg2 = [args count] > 1 ? [args objectAtIndex:1] : nil;
   }
+  [self setContentInsets:arg1 withObject:arg2];
+}
+
+- (void)setContentInsets:(id)value withObject:(id)animated
+{
   TiThreadPerformOnMainThread(
       ^{
-        [(TiUIScrollView *)[self view] setContentInsets_:arg1 withObject:arg2];
+        [(TiUIScrollView *)[self view] setContentInsets_:value withObject:animated];
       },
-      [NSThread isMainThread]);
+      YES);
 }
 
 - (void)setZoomScale:(id)args

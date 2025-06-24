@@ -10,16 +10,24 @@ cd ../../iphone/TitaniumKit
 SDK_VERSION=""
 TIMESTAMP=""
 GIT_HASH=""
+TOOLCHAIN=""
 
-while getopts v:t:h: option
+while getopts v:t:h:c: option
 do
 case "${option}"
 in
 v) SDK_VERSION=${OPTARG};;
 t) TIMESTAMP=${OPTARG};;
 h) GIT_HASH=$OPTARG;;
+c) TOOLCHAIN=$OPTARG;;
 esac
 done
+
+if [ -n "$TOOLCHAIN" ]
+then
+      echo "Using custom toolchain: $TOOLCHAIN"
+      export TOOLCHAINS=$TOOLCHAIN
+fi
 
 if [ -z "$SDK_VERSION" ]
 then
@@ -56,16 +64,17 @@ UNIVERSAL_LIBRARY_DIR="$(pwd)/build"
 
 FRAMEWORK="${UNIVERSAL_LIBRARY_DIR}/${FRAMEWORK_NAME}.xcframework"
 
+rm -rf "${UNIVERSAL_LIBRARY_DIR}"
 mkdir "${UNIVERSAL_LIBRARY_DIR}"
 
 #----- Make macCatalyst archive
-xcodebuild archive \
--scheme $FRAMEWORK_NAME \
--archivePath $MAC_ARCHIVE_PATH \
--sdk macosx \
-SKIP_INSTALL=NO \
-BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
-SUPPORTS_MACCATALYST=YES \
+# xcodebuild archive \
+# -scheme $FRAMEWORK_NAME \
+# -archivePath $MAC_ARCHIVE_PATH \
+# -sdk macosx \
+# SKIP_INSTALL=NO \
+# BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+# SUPPORTS_MACCATALYST=YES \
 
 #----- Make iOS Simulator archive
 xcodebuild archive \
@@ -89,5 +98,5 @@ mv TitaniumKit/Sources/API/TopTiModule.bak TitaniumKit/Sources/API/TopTiModule.m
 xcodebuild -create-xcframework \
 -framework $SIMULATOR_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \
 -framework $DEVICE_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \
--framework $MAC_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \
 -output $FRAMEWORK
+#-framework $MAC_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \

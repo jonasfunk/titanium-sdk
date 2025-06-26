@@ -21,6 +21,14 @@
   TiDimension leftTrackTopCap;
   TiDimension rightTrackLeftCap;
   TiDimension rightTrackTopCap;
+
+  // ✅ Add steps support for iOS
+  NSArray<NSNumber *> *steps;
+  BOOL snapToSteps;
+  // ✅ Track last fired value to prevent duplicate events
+  float lastFiredValue;
+  // ✅ Return step indices instead of values when enabled
+  BOOL stepValues;
 }
 
 /**

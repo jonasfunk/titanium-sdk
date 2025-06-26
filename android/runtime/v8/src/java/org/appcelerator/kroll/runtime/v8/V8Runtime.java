@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.appcelerator.kroll.KrollApplication;
+import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollExternalModule;
 import org.appcelerator.kroll.KrollPromise;
 import org.appcelerator.kroll.KrollProxySupport;
@@ -21,6 +22,7 @@ import org.appcelerator.kroll.KrollRuntime;
 import org.appcelerator.kroll.common.KrollSourceCodeProvider;
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiDeployData;
+import org.appcelerator.titanium.TiApplication;
 
 import android.os.Build;
 import android.os.Handler;
@@ -220,6 +222,18 @@ public final class V8Runtime extends KrollRuntime implements Handler.Callback
 			return new KrollPromise.NullPromise();
 		}
 		return new V8Promise();
+	}
+
+	public static void fireUnhandledRejection(String reason)
+	{
+		Log.e(TAG, "Unhandled promise rejection: " + reason);
+
+		TiApplication app = TiApplication.getInstance();
+		if (app != null) {
+			KrollDict event = new KrollDict();
+			event.put("reason", reason);
+			app.fireAppEvent("unhandledrejection", event);
+		}
 	}
 
 	// JNI method prototypes

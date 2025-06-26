@@ -174,6 +174,44 @@ static void logV8Exception(Local<Message> msg, Local<Value> data)
 		msg->GetSourceLine(context).ToLocalChecked());
 }
 
+void promiseRejectCallback(PromiseRejectMessage message)
+{
+	if (message.GetEvent() == kPromiseRejectWithNoHandler) {
+		Isolate* isolate = V8Runtime::v8_isolate;
+		HandleScope scope(isolate);
+
+		Local<Value> exception = message.GetValue();
+		Local<String> exceptionString;
+
+		if (exception->IsObject()) {
+			Local<Context> context = isolate->GetCurrentContext();
+			Local<Value> stackValue;
+			MaybeLocal<Value> maybeStack = exception.As<Object>()->Get(context, STRING_NEW(isolate, "stack"));
+			if (maybeStack.ToLocal(&stackValue) && stackValue->IsString()) {
+				exceptionString = stackValue.As<String>();
+			}
+		}
+
+		if (exceptionString.IsEmpty()) {
+			Local<Context> context = isolate->GetCurrentContext();
+			TryCatch tryCatch(isolate);
+			MaybeLocal<String> maybeString = exception->ToString(context);
+			if (maybeString.IsEmpty()) {
+				exceptionString = STRING_NEW(isolate, "Unhandled promise rejection.");
+			} else {
+				exceptionString = maybeString.ToLocalChecked();
+			}
+		}
+
+		JNIEnv* env = JNIScope::getEnv();
+		if (env) {
+			jstring error = env->NewStringUTF(*String::Utf8Value(isolate, exceptionString));
+			env->CallStaticVoidMethod(JNIUtil::v8RuntimeClass, JNIUtil::v8RuntimeFireUnhandledRejectionMethod, error);
+			env->DeleteLocalRef(error);
+		}
+	}
+}
+
 } // namespace titanium
 
 extern "C" {
@@ -221,9 +259,9 @@ JNIEXPORT void JNICALL Java_org_appcelerator_kroll_runtime_v8_V8Runtime_nativeIn
 		// Log all uncaught V8 exceptions.
 		isolate->AddMessageListener(logV8Exception);
 		// isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-		// isolate->SetAutorunMicrotasks(false);
 		// isolate->SetFatalErrorHandler(OnFatalError);
 		isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10, v8::StackTrace::kOverview);
+		isolate->SetPromiseRejectCallback(promiseRejectCallback);
 	} else {
 		isolate = V8Runtime::v8_isolate;
 		isolate->Enter();

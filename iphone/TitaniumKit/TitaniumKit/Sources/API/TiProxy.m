@@ -797,6 +797,59 @@ void TiClassSelectorFunction(TiBindingRunLoop runloop, void *payload)
   [self _listenerRemoved:type count:ourCallbackCount];
 }
 
+- (NSNumber *)hasListener:(id)args
+{
+  NSString *eventName = nil;
+  ENSURE_ARG_AT_INDEX(eventName, args, 0, NSString);
+
+  if (eventName == nil) {
+    return NUMBOOL(NO);
+  }
+
+  return NUMBOOL([self _hasListeners:eventName]);
+}
+
+- (void)removeAllListeners:(id)args
+{
+  NSString *eventName = nil;
+
+  // Parse arguments - can be called with no args, string arg, or array with string
+  if ([args isKindOfClass:[NSString class]]) {
+    eventName = (NSString *)args;
+  } else if ([args isKindOfClass:[NSArray class]] && [(NSArray *)args count] > 0) {
+    id firstArg = [(NSArray *)args objectAtIndex:0];
+    if ([firstArg isKindOfClass:[NSString class]]) {
+      eventName = (NSString *)firstArg;
+    }
+  }
+
+  pthread_rwlock_wrlock(&listenerLock);
+
+  if (eventName) {
+    // Remove all listeners for specific event
+    if (listeners && [listeners objectForKey:eventName]) {
+      DebugLog(@"[DEBUG] Removing all listeners for event '%@'", eventName);
+      [listeners removeObjectForKey:eventName];
+      [self _listenerRemoved:eventName count:0];
+    }
+  } else {
+    // Remove ALL listeners for ALL events
+    if (listeners && [listeners count] > 0) {
+      DebugLog(@"[DEBUG] Removing all listeners for all events");
+      NSArray *allEventNames = [[listeners allKeys] copy];
+      [listeners removeAllObjects];
+
+      // Notify for each event type
+      for (NSString *event in allEventNames) {
+        [self _listenerRemoved:event count:0];
+      }
+      [allEventNames release];
+    }
+  }
+
+  pthread_rwlock_unlock(&listenerLock);
+}
+
 - (BOOL)doesntOverrideFireEventWithSource
 {
   IMP proxySourceImp = [[TiProxy class] instanceMethodForSelector:@selector(fireEvent:withObject:withSource:propagate:)];

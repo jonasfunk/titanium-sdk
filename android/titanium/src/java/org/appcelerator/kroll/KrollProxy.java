@@ -1662,6 +1662,74 @@ public class KrollProxy implements Handler.Callback, KrollProxySupport, OnLifecy
 		}
 	}
 
+	/**
+	 * Check if the proxy has listeners for a specific event.
+	 * @param eventName the event name to check.
+	 * @return true if the proxy has listeners for the specified event, false otherwise.
+	 */
+	@Kroll.method
+	public boolean hasListener(String eventName)
+	{
+		if (eventName == null) {
+			return false;
+		}
+		return hasListeners(eventName);
+	}
+
+	/**
+	 * Remove all event listeners for a specific event, or all listeners for all events.
+	 * @param eventName the event name to remove listeners for. If null, removes all listeners for all events.
+	 */
+	@Kroll.method
+	public void removeAllListeners(@Kroll.argument(optional = true) String eventName)
+	{
+		synchronized (eventListeners)
+		{
+			if (eventName == null) {
+				// Remove ALL listeners for ALL events
+				if (!eventListeners.isEmpty()) {
+					if (Log.isDebugModeEnabled()) {
+						Log.d(TAG, "Removing all listeners for all events", Log.DEBUG_MODE);
+					}
+					
+					// Notify JavaScript side for each event type
+					KrollObject krollObject = getKrollObject();
+					if (krollObject != null) {
+						for (String event : eventListeners.keySet()) {
+							krollObject.setHasListenersForEventType(event, false);
+						}
+					}
+					
+					// Clear all listeners
+					eventListeners.clear();
+					setProperty(PROPERTY_HAS_JAVA_LISTENER, false);
+				}
+			} else {
+				// Remove all listeners for specific event
+				HashMap<Integer, KrollEventCallback> listeners = eventListeners.get(eventName);
+				if (listeners != null) {
+					if (Log.isDebugModeEnabled()) {
+						Log.d(TAG, "Removing all listeners for event '" + eventName + "'", Log.DEBUG_MODE);
+					}
+					
+					// Notify JavaScript side
+					KrollObject krollObject = getKrollObject();
+					if (krollObject != null) {
+						krollObject.setHasListenersForEventType(eventName, false);
+					}
+					
+					// Remove listeners for this event
+					listeners.clear();
+					eventListeners.remove(eventName);
+					
+					if (eventListeners.isEmpty()) {
+						setProperty(PROPERTY_HAS_JAVA_LISTENER, false);
+					}
+				}
+			}
+		}
+	}
+
 	public void onEventFired(String event, Object data)
 	{
 		HashMap<Integer, KrollEventCallback> listeners = eventListeners.get(event);

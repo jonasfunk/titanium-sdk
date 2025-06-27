@@ -20,6 +20,7 @@ import org.appcelerator.kroll.KrollProxy;
 import org.appcelerator.kroll.KrollProxyListener;
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiMessenger;
+import org.appcelerator.kroll.util.KrollLifecycleTracker;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.TiDimension;
@@ -168,6 +169,9 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 	{
 		this.proxy = proxy;
 		this.layoutParams = new TiCompositeLayout.LayoutParams();
+		
+		// Track view creation for debugging
+		KrollLifecycleTracker.trackViewCreated(this);
 	}
 
 	/**
@@ -1386,6 +1390,10 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		if (Log.isDebugModeEnabled()) {
 			Log.d(TAG, "Releasing: " + this, Log.DEBUG_MODE);
 		}
+		
+		// Track view destruction for debugging
+		KrollLifecycleTracker.trackViewDestroyed(this);
+		
 		releaseLongPressMotionEvent();
 		View nv = getNativeView();
 		if (nv != null) {

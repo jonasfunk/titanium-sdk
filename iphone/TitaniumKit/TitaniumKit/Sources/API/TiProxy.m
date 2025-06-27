@@ -195,6 +195,18 @@ void TiClassSelectorFunction(TiBindingRunLoop runloop, void *payload)
   TiBindingRunLoopCallOnStart(TiClassSelectorFunction, pair);
 }
 
+// Global variable to track proxy count across all instances
+static int32_t globalProxyCount = 0;
+
++ (NSInteger)currentProxyCount
+{
+#if PROXY_MEMORY_TRACK == 1
+  return (NSInteger)globalProxyCount;
+#else
+  return 0;
+#endif
+}
+
 @synthesize pageContext, executionContext;
 @synthesize modelDelegate;
 
@@ -206,6 +218,9 @@ void TiClassSelectorFunction(TiBindingRunLoop runloop, void *payload)
     _bubbleParent = YES;
 #if PROXY_MEMORY_TRACK == 1
     NSLog(@"[DEBUG] INIT: %@ (%d)", self, [self hash]);
+    // Enhanced lifecycle tracking with global counter
+    OSAtomicIncrement32(&globalProxyCount);
+    NSLog(@"[LIFECYCLE] PROXY CREATED: %@ - Total proxies: %d", NSStringFromClass([self class]), globalProxyCount);
 #endif
     pthread_rwlock_init(&listenerLock, NULL);
     pthread_rwlock_init(&dynpropsLock, NULL);
@@ -424,6 +439,9 @@ void TiClassSelectorFunction(TiBindingRunLoop runloop, void *payload)
 {
 #if PROXY_MEMORY_TRACK == 1
   NSLog(@"[DEBUG] DEALLOC: %@ (%d)", self, [self hash]);
+  // Enhanced lifecycle tracking with global counter
+  OSAtomicDecrement32(&globalProxyCount);
+  NSLog(@"[LIFECYCLE] PROXY DEALLOC: %@ - Total proxies: %d", NSStringFromClass([self class]), globalProxyCount);
 #endif
   [self _destroy];
   pthread_rwlock_destroy(&listenerLock);

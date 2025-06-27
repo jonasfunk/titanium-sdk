@@ -125,6 +125,10 @@ void DoProxyDelegateReadValuesWithKeysFromProxy(UIView<TiProxyDelegate> *target,
  */
 + (void)performSelectorDuringRunLoopStart:(SEL)selector;
 
+/* Debug lifecycle tracking method to get current proxy count
+ */
++ (NSInteger)currentProxyCount;
+
 - (void)boundBridge:(id<TiEvaluator>)newBridge withKrollObject:(KrollObject *)newKrollObject;
 - (void)unboundBridge:(id<TiEvaluator>)oldBridge;
 

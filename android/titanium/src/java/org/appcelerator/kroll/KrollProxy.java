@@ -20,6 +20,7 @@ import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.AsyncResult;
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiMessenger;
+import org.appcelerator.kroll.util.KrollLifecycleTracker;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.TiBaseActivity;
 import org.appcelerator.titanium.TiC;
@@ -159,6 +160,9 @@ public class KrollProxy implements Handler.Callback, KrollProxySupport, OnLifecy
 		krollObject = object;
 		object.setProxySupport(this);
 		this.creationUrl = creationUrl;
+
+		// Track proxy creation for debugging
+		KrollLifecycleTracker.trackProxyCreated(this);
 
 		// Associate the activity with the proxy.  if the proxy needs activity association delayed until a
 		// later point then initActivity should be overridden to be a no-op and then call setActivity directly
@@ -1774,6 +1778,9 @@ public class KrollProxy implements Handler.Callback, KrollProxySupport, OnLifecy
 	 */
 	public void release()
 	{
+		// Track proxy destruction for debugging
+		KrollLifecycleTracker.trackProxyDestroyed(this);
+		
 		if (eventListeners != null) {
 			eventListeners.clear();
 			eventListeners = null;

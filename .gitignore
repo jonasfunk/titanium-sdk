@@ -60,3 +60,4 @@ junit_report.xml
 
 # VS Code History Extension
 .history
+.cursor/rules/*

@@ -52,6 +52,55 @@ public class UIModule extends KrollModule implements TiApplication.Configuration
 	private static final String TAG = "TiUIModule";
 	private int lastEmittedStyle;
 
+	// StackView constants
+	public static final String STACK_VIEW_AXIS_VERTICAL = "vertical";
+	public static final String STACK_VIEW_AXIS_HORIZONTAL = "horizontal";
+
+	public static final String STACK_VIEW_DISTRIBUTION_FILL = "fill";
+	public static final String STACK_VIEW_DISTRIBUTION_FILL_EQUALLY = "fillEqually";
+	public static final String STACK_VIEW_DISTRIBUTION_FILL_PROPORTIONALLY = "fillProportionally";
+	public static final String STACK_VIEW_DISTRIBUTION_EQUAL_SPACING = "equalSpacing";
+	public static final String STACK_VIEW_DISTRIBUTION_EQUAL_CENTERING = "equalCentering";
+
+	public static final String STACK_VIEW_ALIGNMENT_FILL = "fill";
+	public static final String STACK_VIEW_ALIGNMENT_LEADING = "leading";
+	public static final String STACK_VIEW_ALIGNMENT_CENTER = "center";
+	public static final String STACK_VIEW_ALIGNMENT_TRAILING = "trailing";
+	public static final String STACK_VIEW_ALIGNMENT_FIRST_BASELINE = "firstBaseline";
+	public static final String STACK_VIEW_ALIGNMENT_LAST_BASELINE = "lastBaseline";
+
+	// Layout constants
+	public static final String LAYOUT_COMPOSITE = "composite";
+
+	@Kroll.constant
+	public static final String STACK_VIEW_AXIS_VERTICAL = "vertical";
+	@Kroll.constant
+	public static final String STACK_VIEW_AXIS_HORIZONTAL = "horizontal";
+
+	@Kroll.constant
+	public static final String STACK_VIEW_DISTRIBUTION_FILL = "fill";
+	@Kroll.constant
+	public static final String STACK_VIEW_DISTRIBUTION_FILL_EQUALLY = "fillEqually";
+	@Kroll.constant
+	public static final String STACK_VIEW_DISTRIBUTION_FILL_PROPORTIONALLY = "fillProportionally";
+	@Kroll.constant
+	public static final String STACK_VIEW_DISTRIBUTION_EQUAL_SPACING = "equalSpacing";
+	@Kroll.constant
+	public static final String STACK_VIEW_DISTRIBUTION_EQUAL_CENTERING = "equalCentering";
+
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_FILL = "fill";
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_LEADING = "leading";
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_CENTER = "center";
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_TRAILING = "trailing";
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_FIRST_BASELINE = "firstBaseline";
+	@Kroll.constant
+	public static final String STACK_VIEW_ALIGNMENT_LAST_BASELINE = "lastBaseline";
+
 	@Kroll.constant
 	public static final int RETURN_KEY_TYPE_ACTION = 0;
 	@Kroll.constant

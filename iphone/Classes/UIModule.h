@@ -25,6 +25,25 @@
 #import "TiUITableViewScrollPositionProxy.h"
 #endif
 
+#ifdef USE_TI_UIATTRIBUTEDSTRING
+#import "TiUIAttributedStringProxy.h"
+#endif
+#ifdef USE_TI_UIOPTIONBAR
+#import "TiUIOptionBarProxy.h"
+#endif
+#ifdef USE_TI_UITOOLBAR
+#import "TiUIToolbarProxy.h"
+#endif
+#ifdef USE_TI_UITABBEDBAR
+#import "TiUITabbedBarProxy.h"
+#endif
+#ifdef USE_TI_UISTACKVIEW
+#import "TiUIStackViewProxy.h"
+#endif
+#ifdef USE_TI_UIWEBVIEW
+#import <WebKit/WebKit.h>
+#endif
+
 @interface UIModule : TiModule {
 
   @private
@@ -324,6 +343,23 @@
 @property (nonatomic, readwrite, assign) TiUITableViewScrollPositionProxy *TableViewScrollPosition;
 @property (nonatomic, readwrite, assign) TiUITableViewScrollPositionProxy *ListViewScrollPosition;
 #endif
+
+// StackView constants
+@property (nonatomic, readonly) NSString *STACK_VIEW_AXIS_VERTICAL;
+@property (nonatomic, readonly) NSString *STACK_VIEW_AXIS_HORIZONTAL;
+
+@property (nonatomic, readonly) NSString *STACK_VIEW_DISTRIBUTION_FILL;
+@property (nonatomic, readonly) NSString *STACK_VIEW_DISTRIBUTION_FILL_EQUALLY;
+@property (nonatomic, readonly) NSString *STACK_VIEW_DISTRIBUTION_FILL_PROPORTIONALLY;
+@property (nonatomic, readonly) NSString *STACK_VIEW_DISTRIBUTION_EQUAL_SPACING;
+@property (nonatomic, readonly) NSString *STACK_VIEW_DISTRIBUTION_EQUAL_CENTERING;
+
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_FILL;
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_LEADING;
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_CENTER;
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_TRAILING;
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_FIRST_BASELINE;
+@property (nonatomic, readonly) NSString *STACK_VIEW_ALIGNMENT_LAST_BASELINE;
 
 @end
 

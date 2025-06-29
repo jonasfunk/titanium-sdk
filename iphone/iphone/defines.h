@@ -1,0 +1,3 @@
+#define USE_TI_UIWEBVIEW
+#define USE_TI_UIWINDOW
+#define USE_TI_UISTACKVIEW

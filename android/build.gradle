@@ -42,3 +42,6 @@ allprojects {
 tasks.register('clean', Delete) {
 	delete rootProject.buildDir
 }
+
+// StackView support - no additional dependencies needed
+// Uses standard Android LinearLayout and ViewGroup APIs

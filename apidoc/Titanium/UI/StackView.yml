@@ -1,0 +1,296 @@
+---
+name: Titanium.UI.StackView
+summary: A view that arranges its children in a linear stack, either vertically or horizontally.
+description: |
+    A StackView provides a modern layout system similar to iOS UIStackView and Android LinearLayout.
+    It automatically arranges its child views in a linear stack with configurable distribution,
+    alignment, and spacing.
+
+    Use the <Titanium.UI.createStackView> method or **`<StackView>`** Alloy element to create a StackView.
+
+    ## Examples
+
+    ### Simple Vertical Stack
+
+        var stackView = Ti.UI.createStackView({
+            axis: Ti.UI.STACK_VIEW_AXIS_VERTICAL,
+            distribution: Ti.UI.STACK_VIEW_DISTRIBUTION_FILL,
+            alignment: Ti.UI.STACK_VIEW_ALIGNMENT_FILL,
+            spacing: 8
+        });
+
+        var view1 = Ti.UI.createView({ backgroundColor: 'red', height: 50 });
+        var view2 = Ti.UI.createView({ backgroundColor: 'blue', height: 80 });
+        var view3 = Ti.UI.createView({ backgroundColor: 'green', height: 60 });
+
+        stackView.addArrangedSubview(view1);
+        stackView.addArrangedSubview(view2);
+        stackView.addArrangedSubview(view3);
+
+    ### Horizontal Stack with Equal Distribution
+
+        var stackView = Ti.UI.createStackView({
+            axis: Ti.UI.STACK_VIEW_AXIS_HORIZONTAL,
+            distribution: Ti.UI.STACK_VIEW_DISTRIBUTION_FILL_EQUALLY,
+            alignment: Ti.UI.STACK_VIEW_ALIGNMENT_CENTER,
+            spacing: 12
+        });
+
+    ### Alloy XML Markup
+
+        <StackView axis="vertical" distribution="fill" alignment="fill" spacing="8">
+            <View backgroundColor="red" height="50" />
+            <View backgroundColor="blue" height="80" />
+            <View backgroundColor="green" height="60" />
+        </StackView>
+
+extends: Titanium.UI.View
+since: "12.0.0"
+platforms: [android, iphone, ipad]
+createable: true
+
+properties:
+  - name: axis
+    summary: The axis along which the arranged views are laid out.
+    description: |
+        Determines whether the stack view lays out its arranged views horizontally or vertically.
+    type: String
+    constants: Titanium.UI.STACK_VIEW_AXIS_*
+    default: Titanium.UI.STACK_VIEW_AXIS_VERTICAL
+
+  - name: distribution
+    summary: The distribution of the arranged views along the stack view's axis.
+    description: |
+        This property determines how the stack view lays out its arranged views along its axis.
+
+        - `FILL`: The stack view resizes its arranged views so that they fill the available space along the stack view's axis.
+        - `FILL_EQUALLY`: The stack view resizes its arranged views to the same size along the stack view's axis.
+        - `FILL_PROPORTIONALLY`: The stack view resizes its arranged views proportionally to their intrinsic content size.
+        - `EQUAL_SPACING`: The stack view positions its arranged views so that they fill the available space with equal spacing between views.
+        - `EQUAL_CENTERING`: The stack view positions its arranged views so that they fill the available space with equal distance between the centers of adjacent views.
+    type: String
+    constants: Titanium.UI.STACK_VIEW_DISTRIBUTION_*
+    default: Titanium.UI.STACK_VIEW_DISTRIBUTION_FILL
+
+  - name: alignment
+    summary: The alignment of the arranged views perpendicular to the stack view's axis.
+    description: |
+        This property determines how the stack view lays out its arranged views perpendicular to its axis.
+
+        - `FILL`: The stack view resizes its arranged views so that they fill the available space perpendicular to the stack view's axis.
+        - `LEADING`: The stack view aligns the leading edge of its arranged views along its leading edge.
+        - `CENTER`: The stack view centers its arranged views in its bounds.
+        - `TRAILING`: The stack view aligns the trailing edge of its arranged views along its trailing edge.
+        - `FIRST_BASELINE`: The stack view aligns its arranged views based on their first baseline.
+        - `LAST_BASELINE`: The stack view aligns its arranged views based on their last baseline.
+    type: String
+    constants: Titanium.UI.STACK_VIEW_ALIGNMENT_*
+    default: Titanium.UI.STACK_VIEW_ALIGNMENT_FILL
+
+  - name: spacing
+    summary: The distance in pixels between adjacent edges of the stack view's arranged views.
+    description: |
+        This property defines the spacing between adjacent arranged views. The spacing is only applied
+        between views, not before the first view or after the last view.
+    type: Number
+    default: 0
+
+  - name: layoutMargins
+    summary: The margins to apply to the stack view's content.
+    description: |
+        This property defines the margins around the stack view's content. The margins are applied
+        as padding inside the stack view's bounds.
+    type: LayoutMargins
+    optional: true
+
+  - name: layoutMarginsRelativeArrangement
+    summary: Whether the stack view's layout margins are used when laying out arranged subviews.
+    description: |
+        When this property is `true`, the stack view will layout its arranged views relative to its
+        layout margins instead of its bounds. When `false`, it lays out the arranged views relative
+        to its bounds.
+    type: Boolean
+    default: false
+    platforms: [iphone, ipad, android]
+    since: "12.8.0"
+
+  - name: animationsEnabled
+    summary: Whether automatic layout animations are enabled when views are added, removed, or rearranged.
+    description: |
+        When enabled, the StackView will automatically animate layout changes with smooth transitions.
+        On iOS, this uses UIStackView's built-in animation support.
+        On Android, this uses LayoutTransition for automatic animations (API 11+).
+    type: Boolean
+    default: true
+    platforms: [iphone, ipad, android]
+    since: "12.8.0"
+
+  - name: animationDuration
+    summary: Duration in milliseconds for automatic layout animations.
+    description: |
+        Controls how long the automatic animations take when views are added, removed, or rearranged.
+        This property only affects Android. On iOS, animation duration is controlled by the system.
+    type: Number
+    default: 300
+    platforms: [android]
+    since: "12.8.0"
+
+methods:
+  - name: addArrangedSubview
+    summary: Adds a view to the end of the arrangedSubviews array.
+    description: |
+        This method adds the provided view to the stack view's array of arranged views. The view is
+        added to the end of the array, so it appears last in the stack.
+    parameters:
+      - name: view
+        summary: The view to add to the array of views arranged by the stack view.
+        type: Titanium.UI.View
+
+  - name: removeArrangedSubview
+    summary: Removes the provided view from the stack's array of arranged subviews.
+    description: |
+        This method removes the provided view from the stack view's array of arranged views. The view
+        is removed from the stack but not from the view hierarchy unless it has no other superview.
+    parameters:
+      - name: view
+        summary: The view to remove from the array of views arranged by the stack view.
+        type: Titanium.UI.View
+
+  - name: insertArrangedSubview
+    summary: Inserts the provided view into the arrangedSubviews array at the specified index.
+    description: |
+        This method inserts the provided view into the stack view's array of arranged views at the
+        specified index. Views at or after the specified index are shifted down in the array.
+    parameters:
+      - name: view
+        summary: The view to insert into the array of views arranged by the stack view.
+        type: Titanium.UI.View
+      - name: index
+        summary: The index at which to insert the view. This value must not be greater than the number of views currently in the arrangedSubviews array.
+        type: Number
+
+  - name: setCustomSpacing
+    summary: Applies the spacing only between the specified view and the view that follows it.
+    description: |
+        This method applies custom spacing after the specified view. This spacing is used instead
+        of the stack view's spacing property for the space after this specific view.
+
+        Note: This method requires iOS 11.0 or later on iOS platform.
+    parameters:
+      - name: spacing
+        summary: The spacing to apply after the specified view.
+        type: Number
+      - name: afterView
+        summary: The view after which to apply the custom spacing.
+        type: Titanium.UI.View
+    platforms: [android, iphone, ipad]
+    since: "12.0.0"
+
+examples:
+  - title: Vertical Stack with Different Distributions
+    example: |
+        var win = Ti.UI.createWindow({ backgroundColor: 'white' });
+
+        // Create stack view with vertical axis
+        var stackView = Ti.UI.createStackView({
+            axis: Ti.UI.STACK_VIEW_AXIS_VERTICAL,
+            distribution: Ti.UI.STACK_VIEW_DISTRIBUTION_FILL_EQUALLY,
+            alignment: Ti.UI.STACK_VIEW_ALIGNMENT_FILL,
+            spacing: 10,
+            backgroundColor: 'lightgray',
+            width: 200,
+            height: 300
+        });
+
+        // Create child views
+        var redView = Ti.UI.createView({ backgroundColor: 'red' });
+        var blueView = Ti.UI.createView({ backgroundColor: 'blue' });
+        var greenView = Ti.UI.createView({ backgroundColor: 'green' });
+
+        // Add views to stack
+        stackView.addArrangedSubview(redView);
+        stackView.addArrangedSubview(blueView);
+        stackView.addArrangedSubview(greenView);
+
+        win.add(stackView);
+        win.open();
+
+  - title: Horizontal Stack with Custom Spacing
+    example: |
+        var win = Ti.UI.createWindow({ backgroundColor: 'white' });
+
+        // Create horizontal stack view
+        var stackView = Ti.UI.createStackView({
+            axis: Ti.UI.STACK_VIEW_AXIS_HORIZONTAL,
+            distribution: Ti.UI.STACK_VIEW_DISTRIBUTION_FILL,
+            alignment: Ti.UI.STACK_VIEW_ALIGNMENT_CENTER,
+            spacing: 8,
+            backgroundColor: 'lightgray',
+            width: 300,
+            height: 100
+        });
+
+        var view1 = Ti.UI.createView({ backgroundColor: 'red', width: 50 });
+        var view2 = Ti.UI.createView({ backgroundColor: 'blue', width: 60 });
+        var view3 = Ti.UI.createView({ backgroundColor: 'green', width: 40 });
+
+        stackView.addArrangedSubview(view1);
+        stackView.addArrangedSubview(view2);
+        stackView.addArrangedSubview(view3);
+
+        // Apply custom spacing after view1
+        stackView.setCustomSpacing(20, view1);
+
+        win.add(stackView);
+        win.open();
+
+  - title: Dynamic Stack Management
+    example: |
+        var win = Ti.UI.createWindow({ backgroundColor: 'white' });
+
+        var stackView = Ti.UI.createStackView({
+            axis: Ti.UI.STACK_VIEW_AXIS_VERTICAL,
+            distribution: Ti.UI.STACK_VIEW_DISTRIBUTION_FILL,
+            spacing: 8,
+            backgroundColor: 'lightgray',
+            width: 200,
+            height: 200
+        });
+
+        var views = [];
+        var colors = ['red', 'blue', 'green', 'yellow', 'purple'];
+
+        // Button to add views
+        var addButton = Ti.UI.createButton({
+            title: 'Add View',
+            top: 10
+        });
+
+        addButton.addEventListener('click', function() {
+            if (views.length < colors.length) {
+                var newView = Ti.UI.createView({
+                    backgroundColor: colors[views.length],
+                    height: 30
+                });
+                views.push(newView);
+                stackView.addArrangedSubview(newView);
+            }
+        });
+
+        // Button to remove views
+        var removeButton = Ti.UI.createButton({
+            title: 'Remove View',
+            top: 50
+        });
+
+        removeButton.addEventListener('click', function() {
+            if (views.length > 0) {
+                var viewToRemove = views.pop();
+                stackView.removeArrangedSubview(viewToRemove);
+            }
+        });
+
+        win.add(stackView);
+        win.add(addButton);
+        win.add(removeButton);
+        win.open();

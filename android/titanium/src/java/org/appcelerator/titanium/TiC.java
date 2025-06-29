@@ -881,4 +881,12 @@ public class TiC
 	public static final String URL_ANDROID_ASSET = "file:///android_asset/";
 	public static final String URL_ANDROID_ASSET_RESOURCES = URL_ANDROID_ASSET + "Resources/";
 	public static final String PATH_APP_JS = "Resources/app.js";
+
+	// StackView properties
+	public static final String PROPERTY_AXIS = "axis";
+	public static final String PROPERTY_DISTRIBUTION = "distribution";
+	public static final String PROPERTY_ALIGNMENT = "alignment";
+	public static final String PROPERTY_SPACING = "spacing";
+	public static final String PROPERTY_LAYOUT_MARGINS = "layoutMargins";
+	public static final String PROPERTY_LAYOUT_MARGINS_RELATIVE_ARRANGEMENT = "layoutMarginsRelativeArrangement";
 }

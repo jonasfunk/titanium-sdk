@@ -380,6 +380,13 @@ MAKE_SYSTEM_PROP(LIST_ACCESSORY_TYPE_DISCLOSURE, UITableViewCellAccessoryDisclos
 }
 #endif
 
+#ifdef USE_TI_UISTACKVIEW
+- (id)createStackView:(id)args
+{
+  return [[[TiUIStackViewProxy alloc] _initWithPageContext:[self executionContext] args:args] autorelease];
+}
+#endif
+
 - (void)setOrientation:(id)mode
 {
   DebugLog(@"Ti.UI.setOrientation is deprecated since 1.7.2 . Ignoring call.");
@@ -857,6 +864,72 @@ MAKE_SYSTEM_PROP(TABLE_VIEW_SEPARATOR_STYLE_SINGLE_LINE, UITableViewCellSeparato
   return _ListViewScrollPosition;
 }
 #endif
+
+// StackView constants
+- (NSString *)STACK_VIEW_AXIS_VERTICAL
+{
+  return @"vertical";
+}
+
+- (NSString *)STACK_VIEW_AXIS_HORIZONTAL
+{
+  return @"horizontal";
+}
+
+- (NSString *)STACK_VIEW_DISTRIBUTION_FILL
+{
+  return @"fill";
+}
+
+- (NSString *)STACK_VIEW_DISTRIBUTION_FILL_EQUALLY
+{
+  return @"fillEqually";
+}
+
+- (NSString *)STACK_VIEW_DISTRIBUTION_FILL_PROPORTIONALLY
+{
+  return @"fillProportionally";
+}
+
+- (NSString *)STACK_VIEW_DISTRIBUTION_EQUAL_SPACING
+{
+  return @"equalSpacing";
+}
+
+- (NSString *)STACK_VIEW_DISTRIBUTION_EQUAL_CENTERING
+{
+  return @"equalCentering";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_FILL
+{
+  return @"fill";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_LEADING
+{
+  return @"leading";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_CENTER
+{
+  return @"center";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_TRAILING
+{
+  return @"trailing";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_FIRST_BASELINE
+{
+  return @"firstBaseline";
+}
+
+- (NSString *)STACK_VIEW_ALIGNMENT_LAST_BASELINE
+{
+  return @"lastBaseline";
+}
 
 @end
 

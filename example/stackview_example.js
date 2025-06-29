@@ -67,7 +67,7 @@ const example2 = createExample('Horizontal Stack with Equal Distribution', () =>
 		height: 80
 	});
 
-	const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44'];
+	const colors = [ '#ff4444', '#44ff44', '#4444ff', '#ffff44' ];
 
 	colors.forEach((color) => {
 		const view = Ti.UI.createView({
@@ -135,7 +135,7 @@ const example3 = createExample('Dynamic Stack Management', () => {
 	});
 
 	let viewCount = 0;
-	const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff'];
+	const colors = [ '#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff' ];
 
 	addButton.addEventListener('click', () => {
 		if (viewCount < 6) {

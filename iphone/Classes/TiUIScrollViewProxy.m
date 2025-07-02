@@ -84,6 +84,16 @@ static NSArray *scrollViewKeySequence;
   if ([self viewAttached]) {
     [self contentsWillChange];
   }
+
+  // Gendan contentInsets hvis den er gemt som property
+  id savedContentInsets = [self valueForUndefinedKey:@"contentInsets"];
+  if (savedContentInsets) {
+    TiThreadPerformOnMainThread(
+        ^{
+          [(TiUIScrollView *)[self view] setContentInsets_:savedContentInsets withObject:nil];
+        },
+        NO);
+  }
 }
 
 - (void)contentsWillChange
@@ -406,11 +416,18 @@ static NSArray *scrollViewKeySequence;
     arg1 = [args objectAtIndex:0];
     arg2 = [args count] > 1 ? [args objectAtIndex:1] : nil;
   }
+
+  // Gem contentInsets som property så den bevares gennem view lifecycle
+  [self replaceValue:arg1 forKey:@"contentInsets" notification:NO];
+
   [self setContentInsets:arg1 withObject:arg2];
 }
 
 - (void)setContentInsets:(id)value withObject:(id)animated
 {
+  // Gem contentInsets som property så den bevares gennem view lifecycle
+  [self replaceValue:value forKey:@"contentInsets" notification:NO];
+
   TiThreadPerformOnMainThread(
       ^{
         [(TiUIScrollView *)[self view] setContentInsets_:value withObject:animated];

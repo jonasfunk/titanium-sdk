@@ -49,6 +49,7 @@ public class TiUIScrollView extends TiUIView
 	private boolean mScrollingEnabled = true;
 	private boolean isScrolling = false;
 	private boolean isTouching = false;
+	private Object pendingContentInsets = null;
 
 	private static int verticalAttrId = -1;
 	private static int horizontalAttrId = -1;
@@ -567,6 +568,9 @@ public class TiUIScrollView extends TiUIView
 				int childHeightMeasureSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
 				child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
 			}
+
+			// Check if we can now apply pending content insets
+			checkAndApplyPendingInsets();
 		}
 	}
 
@@ -723,6 +727,9 @@ public class TiUIScrollView extends TiUIView
 				int childWidthMeasureSpec = MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY);
 				child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
 			}
+
+			// Check if we can now apply pending content insets
+			checkAndApplyPendingInsets();
 		}
 	}
 
@@ -808,8 +815,12 @@ public class TiUIScrollView extends TiUIView
 		if (hashMap instanceof HashMap) {
 			KrollDict contentInsets = new KrollDict((HashMap) hashMap);
 			View view = this.scrollView;
-			
-			if (view != null) {
+
+			// Always store in proxy for persistence across view lifecycle
+			getProxy().setProperty(TiC.PROPERTY_CONTENT_INSETS, hashMap);
+
+			if (view != null && (view.getWidth() > 0 || view.getHeight() > 0
+				|| view.getMeasuredWidth() > 0 || view.getMeasuredHeight() > 0)) {
 				int paddingLeft = view.getPaddingLeft();
 				int paddingTop = view.getPaddingTop();
 				int paddingRight = view.getPaddingRight();
@@ -832,20 +843,46 @@ public class TiUIScrollView extends TiUIView
 						.getAsPixels(view);
 				}
 
+				// Validate padding values to prevent them from being larger than the view
+				int maxWidth = view.getMeasuredWidth() > 0 ? view.getMeasuredWidth() : view.getWidth();
+				int maxHeight = view.getMeasuredHeight() > 0 ? view.getMeasuredHeight() : view.getHeight();
+
+				if (maxWidth > 0 && (paddingLeft + paddingRight) >= maxWidth) {
+					paddingLeft = maxWidth / 4; // Use 25% of width
+					paddingRight = maxWidth / 4;
+				}
+
+				if (maxHeight > 0 && (paddingTop + paddingBottom) >= maxHeight) {
+					paddingTop = maxHeight / 4; // Use 25% of height
+					paddingBottom = maxHeight / 4;
+				}
+
 				view.setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
-				
+
 				// Set clipChildren to false to prevent content clipping when using insets
 				if (view instanceof ViewGroup) {
 					((ViewGroup) view).setClipChildren(false);
 					((ViewGroup) view).setClipToPadding(false);
 				}
-				
+
 				// Also apply to the layout if it's a scroll view with internal layout
 				TiScrollViewLayout layout = getLayout();
 				if (layout != null) {
 					layout.setClipChildren(false);
 					layout.setClipToPadding(false);
 				}
+
+				// Force layout update to ensure insets are applied immediately
+				view.requestLayout();
+				if (layout != null) {
+					layout.requestLayout();
+				}
+
+				// Clear any pending insets since we've successfully applied them
+				pendingContentInsets = null;
+			} else {
+				// Store insets for later application when view is ready
+				pendingContentInsets = hashMap;
 			}
 		} else {
 			Log.e(TAG, "ContentInsets must be an instance of HashMap");
@@ -859,13 +896,13 @@ public class TiUIScrollView extends TiUIView
 			return new KrollDict();
 		}
 		KrollDict d = new KrollDict();
-		
+
 		// Convert pixel values back to DIP using TiDimension
 		TiDimension leftDimension = new TiDimension(view.getPaddingLeft(), TiDimension.TYPE_LEFT);
 		TiDimension topDimension = new TiDimension(view.getPaddingTop(), TiDimension.TYPE_TOP);
 		TiDimension rightDimension = new TiDimension(view.getPaddingRight(), TiDimension.TYPE_RIGHT);
 		TiDimension bottomDimension = new TiDimension(view.getPaddingBottom(), TiDimension.TYPE_BOTTOM);
-		
+
 		d.put(TiC.PROPERTY_LEFT, leftDimension.getAsDefault(view));
 		d.put(TiC.PROPERTY_TOP, topDimension.getAsDefault(view));
 		d.put(TiC.PROPERTY_RIGHT, rightDimension.getAsDefault(view));
@@ -1076,6 +1113,20 @@ public class TiUIScrollView extends TiUIView
 		this.scrollView.setHorizontalScrollBarEnabled(showHorizontalScrollBar);
 		this.scrollView.setVerticalScrollBarEnabled(showVerticalScrollBar);
 
+		// Apply contentInsets if set as property (for persistence like iOS)
+		if (d.containsKey(TiC.PROPERTY_CONTENT_INSETS)) {
+			setContentInsets(d.get(TiC.PROPERTY_CONTENT_INSETS));
+		} else {
+			// Check if contentInsets were stored earlier due to timing issues
+			Object storedInsets = getProxy().getProperty(TiC.PROPERTY_CONTENT_INSETS);
+			if (storedInsets != null) {
+				setContentInsets(storedInsets);
+			}
+		}
+
+		// Check if we can apply any pending insets now that view is created
+		checkAndApplyPendingInsets();
+
 		super.processProperties(d);
 	}
 
@@ -1088,6 +1139,28 @@ public class TiUIScrollView extends TiUIView
 			return ((TiHorizontalScrollView) nativeView).layout;
 		}
 		return null;
+	}
+
+	/**
+	 * Check if view is ready and apply any pending content insets
+	 */
+	private void checkAndApplyPendingInsets()
+	{
+		// First check pending insets, then fall back to proxy-stored insets
+		Object insetsToApply = pendingContentInsets;
+		if (insetsToApply == null) {
+			insetsToApply = getProxy().getProperty(TiC.PROPERTY_CONTENT_INSETS);
+		}
+
+		if (insetsToApply != null && scrollView != null) {
+			// Check if view has valid dimensions
+			if (scrollView.getWidth() > 0 || scrollView.getHeight() > 0
+				|| scrollView.getMeasuredWidth() > 0 || scrollView.getMeasuredHeight() > 0) {
+
+				// Apply the insets
+				setContentInsets(insetsToApply);
+			}
+		}
 	}
 
 	@Override

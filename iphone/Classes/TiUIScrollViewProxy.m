@@ -407,6 +407,7 @@ static NSArray *scrollViewKeySequence;
 
 - (void)setContentInsets:(id)args
 {
+  ENSURE_UI_THREAD(setContentInsets, args);
   id arg1;
   id arg2;
   if ([args isKindOfClass:[NSDictionary class]]) {
@@ -425,12 +426,14 @@ static NSArray *scrollViewKeySequence;
 
 - (void)setContentInsets:(id)value withObject:(id)animated
 {
+  ENSURE_UI_THREAD(setContentInsets, value);
+
   // Gem contentInsets som property så den bevares gennem view lifecycle
   [self replaceValue:value forKey:@"contentInsets" notification:NO];
 
   TiThreadPerformOnMainThread(
       ^{
-        [(TiUIScrollView *)[self view] setContentInsets_:value withObject:animated];
+        [[self view] performSelector:@selector(setContentInsets_:withObject:) withObject:value withObject:animated];
       },
       YES);
 }

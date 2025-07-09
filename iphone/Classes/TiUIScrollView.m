@@ -431,8 +431,12 @@
 {
   ENSURE_TYPE_OR_NIL(property, NSDictionary);
   UIEdgeInsets newInsets = [TiUtils contentInsets:value];
-  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:YES];
+  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:NO];
+
   if (animated) {
+    // Cancel any existing animations to prevent conflicts
+    [scrollView.layer removeAllAnimations];
+
     [UIView animateWithDuration:[TiUtils doubleValue:@"duration" properties:property def:0.3]
                      animations:^{
                        [[self scrollView] setContentInset:newInsets];

@@ -15,6 +15,7 @@ import org.appcelerator.kroll.common.Log;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.util.TiConvert;
+import org.appcelerator.titanium.TiDimension;
 import org.appcelerator.titanium.view.TiCompositeLayout;
 import org.appcelerator.titanium.view.TiUIView;
 
@@ -54,6 +55,13 @@ public class TiUIScrollableView extends TiUIView
 	private int mCurIndex = 0;
 	private boolean mEnabled = true;
 
+	// Store current padding values to preserve them across resumes
+	private int mStoredPaddingLeft = 0;
+	private int mStoredPaddingTop = 0;
+	private int mStoredPaddingRight = 0;
+	private int mStoredPaddingBottom = 0;
+	private boolean mHasPaddingSet = false;
+
 	public TiUIScrollableView(ScrollableViewProxy proxy)
 	{
 		super(proxy);
@@ -69,8 +77,10 @@ public class TiUIScrollableView extends TiUIView
 		// Add ViewPager to container.
 		mAdapter = new ViewPagerAdapter(activity, proxy.getViewsList());
 		mPager = buildViewPager(activity, mAdapter);
+		
 		if (proxy.hasPropertyAndNotNull(TiC.PROPERTY_CLIP_VIEWS)) {
-			mPager.setClipToPadding(TiConvert.toBoolean(proxy.getProperty(TiC.PROPERTY_CLIP_VIEWS), true));
+			boolean clipViews = TiConvert.toBoolean(proxy.getProperty(TiC.PROPERTY_CLIP_VIEWS), true);
+			mPager.setClipToPadding(clipViews);
 		}
 		mContainer.addView(mPager, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
@@ -168,6 +178,47 @@ public class TiUIScrollableView extends TiUIView
 		});
 
 		pager.setAdapter(adapter);
+
+		// Add layout listener to reapply padding when ViewPager gets proper dimensions
+		pager.addOnLayoutChangeListener(new View.OnLayoutChangeListener()
+		{
+			@Override
+			public void onLayoutChange(View v, int left, int top, int right, int bottom,
+					int oldLeft, int oldTop, int oldRight, int oldBottom)
+			{
+				// Check if dimensions actually changed from 0
+				int newWidth = right - left;
+				int newHeight = bottom - top;
+				int oldWidth = oldRight - oldLeft;
+				int oldHeight = oldBottom - oldTop;
+
+				// Always check if padding needs to be restored
+				if ((newWidth > 0 && newHeight > 0) && mHasPaddingSet) {
+					// Check if current padding matches stored padding
+					boolean paddingNeedsRestore = (mPager.getPaddingLeft() != mStoredPaddingLeft
+						|| mPager.getPaddingTop() != mStoredPaddingTop
+						|| mPager.getPaddingRight() != mStoredPaddingRight
+						|| mPager.getPaddingBottom() != mStoredPaddingBottom);
+
+					if (paddingNeedsRestore) {
+						mPager.setPadding(mStoredPaddingLeft, mStoredPaddingTop, mStoredPaddingRight,
+							mStoredPaddingBottom);
+					}
+				}
+
+				// Also handle first-time layout
+				if ((oldWidth == 0 || oldHeight == 0) && (newWidth > 0 && newHeight > 0)) {
+					// ViewPager got its first real dimensions, apply padding from properties if no stored values
+					if (!mHasPaddingSet && proxy.hasProperty(TiC.PROPERTY_PADDING)) {
+						Object paddingValue = proxy.getProperty(TiC.PROPERTY_PADDING);
+						if (paddingValue instanceof HashMap) {
+							setPadding((HashMap<String, Object>) paddingValue);
+						}
+					}
+				}
+			}
+		});
+		
 		pager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
 			private int lastSelectedPageIndex;
 			private boolean isScrolling;
@@ -282,6 +333,7 @@ public class TiUIScrollableView extends TiUIView
 				}
 			}
 		});
+		
 		return pager;
 	}
 
@@ -411,6 +463,11 @@ public class TiUIScrollableView extends TiUIView
 			setPadding((HashMap) d.get(TiC.PROPERTY_PADDING));
 		}
 
+		if (d.containsKey(TiC.PROPERTY_CLIP_VIEWS)) {
+			boolean clipViews = TiConvert.toBoolean(d, TiC.PROPERTY_CLIP_VIEWS);
+			mPager.setClipToPadding(clipViews);
+		}
+
 		super.processProperties(d);
 	}
 
@@ -434,6 +491,9 @@ public class TiUIScrollableView extends TiUIView
 			mPager.setOverScrollMode(TiConvert.toInt(newValue, View.OVER_SCROLL_ALWAYS));
 		} else if (TiC.PROPERTY_CACHE_SIZE.equals(key)) {
 			setPageCacheSize(TiConvert.toInt(newValue));
+		} else if (TiC.PROPERTY_CLIP_VIEWS.equals(key)) {
+			boolean clipViews = TiConvert.toBoolean(newValue, true);
+			mPager.setClipToPadding(clipViews);
 		} else {
 			super.propertyChanged(key, oldValue, newValue, proxy);
 		}
@@ -542,28 +602,83 @@ public class TiUIScrollableView extends TiUIView
 
 	private void setPadding(HashMap<String, Object> d)
 	{
+		if (d == null) {
+			return;
+		}
+
 		int paddingLeft = mPager.getPaddingLeft();
 		int paddingRight = mPager.getPaddingRight();
 		int paddingTop = mPager.getPaddingTop();
 		int paddingBottom = mPager.getPaddingBottom();
 
 		if (d.containsKey(TiC.PROPERTY_LEFT)) {
-			paddingLeft = TiConvert.toInt(d.get(TiC.PROPERTY_LEFT), 0);
+			Object leftValue = d.get(TiC.PROPERTY_LEFT);
+			int leftInt = TiConvert.toInt(leftValue, 0);
+			paddingLeft = TiConvert.toTiDimension(leftInt, TiDimension.TYPE_LEFT).getAsPixels(mPager);
 		}
 
 		if (d.containsKey(TiC.PROPERTY_RIGHT)) {
-			paddingRight = TiConvert.toInt(d.get(TiC.PROPERTY_RIGHT), 0);
+			Object rightValue = d.get(TiC.PROPERTY_RIGHT);
+			int rightInt = TiConvert.toInt(rightValue, 0);
+			paddingRight = TiConvert.toTiDimension(rightInt, TiDimension.TYPE_RIGHT).getAsPixels(mPager);
 		}
 
 		if (d.containsKey(TiC.PROPERTY_TOP)) {
-			paddingTop = TiConvert.toInt(d.get(TiC.PROPERTY_TOP), 0);
+			Object topValue = d.get(TiC.PROPERTY_TOP);
+			int topInt = TiConvert.toInt(topValue, 0);
+			paddingTop = TiConvert.toTiDimension(topInt, TiDimension.TYPE_TOP).getAsPixels(mPager);
 		}
 
 		if (d.containsKey(TiC.PROPERTY_BOTTOM)) {
-			paddingBottom = TiConvert.toInt(d.get(TiC.PROPERTY_BOTTOM), 0);
+			Object bottomValue = d.get(TiC.PROPERTY_BOTTOM);
+			int bottomInt = TiConvert.toInt(bottomValue, 0);
+			paddingBottom = TiConvert.toTiDimension(bottomInt, TiDimension.TYPE_BOTTOM).getAsPixels(mPager);
 		}
 
+		// Store padding values for later restoration
+		mStoredPaddingLeft = paddingLeft;
+		mStoredPaddingTop = paddingTop;
+		mStoredPaddingRight = paddingRight;
+		mStoredPaddingBottom = paddingBottom;
+		mHasPaddingSet = true;
+
+		// Apply padding to ViewPager
 		mPager.setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
+
+		// Force layout after setting padding since ViewPager needs dimensions for padding to work
+		mPager.requestLayout();
+
+		// Also request layout on container
+		if (mContainer != null) {
+			mContainer.requestLayout();
+		}
+	}
+
+	@Override
+	protected void layoutNativeView(boolean informParent)
+	{
+		super.layoutNativeView(informParent);
+
+		// Check if stored padding needs to be restored
+		if (mHasPaddingSet && (mPager.getWidth() > 0 && mPager.getHeight() > 0)) {
+			// Check if current padding matches stored padding
+			boolean paddingNeedsRestore = (mPager.getPaddingLeft() != mStoredPaddingLeft
+				|| mPager.getPaddingTop() != mStoredPaddingTop
+				|| mPager.getPaddingRight() != mStoredPaddingRight
+				|| mPager.getPaddingBottom() != mStoredPaddingBottom);
+			
+			if (paddingNeedsRestore) {
+				mPager.setPadding(mStoredPaddingLeft, mStoredPaddingTop, mStoredPaddingRight,
+					mStoredPaddingBottom);
+			}
+		}
+		// Fallback: Reapply padding from properties if no stored values
+		else if (!mHasPaddingSet && proxy.hasProperty(TiC.PROPERTY_PADDING)) {
+			Object paddingValue = proxy.getProperty(TiC.PROPERTY_PADDING);
+			if (paddingValue instanceof HashMap) {
+				setPadding((HashMap<String, Object>) paddingValue);
+			}
+		}
 	}
 
 	@Override

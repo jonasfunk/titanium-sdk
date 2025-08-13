@@ -309,6 +309,7 @@ public class TiC
 	public static final String PROPERTY_TRANSITION_NAME = "transitionName";
 	public static final String PROPERTY_BAR_COLOR = "barColor";
 	public static final String PROPERTY_STATUS_BAR_COLOR = "statusBarColor";
+	public static final String PROPERTY_NAVIGATION_BAR_COLOR = "navigationBarColor";
 	public static final String PROPERTY_BASE_URL = "baseUrl";
 	public static final String PROPERTY_BASE_URL_WEBVIEW = "baseURL";
 	public static final String PROPERTY_BIG_TEXT = "bigText";
@@ -873,6 +874,7 @@ public class TiC
 	public static final String PROPERTY_FIXED_SIZE = "fixedSize";
 	public static final String PROPERTY_UI_FLAGS = "uiFlags";
 	public static final String PROPERTY_LAYER_TYPE = "layerType";
+	public static final String PROPERTY_ADAPTIVE_CONTRAST = "adaptiveContrast";
 
 	public static final String SIZE_AUTO = "auto";
 	public static final String URL_APP_PREFIX = "app://";

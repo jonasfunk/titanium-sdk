@@ -62,16 +62,30 @@ static NSArray *scrollViewKeySequence;
 
 - (id)contentInsets
 {
+  // 1) Return any saved property value immediately (avoids unnecessary view access)
+  id saved = [self valueForUndefinedKey:@"contentInsets"];
+  if (saved != nil) {
+    return saved;
+  }
+
+  // 2) If no view is attached yet, return zero-insets
   if (![self viewAttached]) {
     return [TiUtils dictionaryFromEdgeInsets:UIEdgeInsetsZero];
   }
 
+  // 3) Read current native contentInset on main thread
   __block NSDictionary *result = nil;
   TiThreadPerformOnMainThread(
       ^{
-        result = [[TiUtils dictionaryFromEdgeInsets:[[(TiUIScrollView *)self.view scrollView] contentInset]] retain];
+        UIEdgeInsets insets = [[(TiUIScrollView *)self.view scrollView] contentInset];
+        result = [[TiUtils dictionaryFromEdgeInsets:insets] retain];
       },
       YES);
+
+  // Fallback safety
+  if (result == nil) {
+    return [TiUtils dictionaryFromEdgeInsets:UIEdgeInsetsZero];
+  }
 
   return [result autorelease];
 }

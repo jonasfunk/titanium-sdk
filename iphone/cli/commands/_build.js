@@ -5164,9 +5164,15 @@ iOSBuilder.prototype.copyResources = async function copyResources() {
 
 iOSBuilder.prototype.gatherResources = async function gatherResources() {
 	const gather = require('../../../cli/lib/gather');
+
+	// Create a modified ignoreFiles RegExp that also ignores TypeScript files
+	const originalIgnoreFiles = this.ignoreFiles.source;
+	const modifiedIgnoreFiles = originalIgnoreFiles.replace(/\)\$/, '|.*\\.ts)$');
+	const ignoreFilesWithTS = new RegExp(modifiedIgnoreFiles, this.ignoreFiles.flags);
+
 	const walker = new gather.Walker({
 		ignoreDirs: this.ignoreDirs,
-		ignoreFiles: this.ignoreFiles,
+		ignoreFiles: ignoreFilesWithTS,
 	});
 
 	this.logger.info(__('Analyzing Resources directory'));
@@ -5223,9 +5229,14 @@ iOSBuilder.prototype.gatherResources = async function gatherResources() {
 	const commonJsResults = await Promise.all(this.commonJsModules.map(async module => {
 		this.logger.info(__('Analyzing CommonJS module: %s', module.id));
 		const dest = path.join(this.xcodeAppDir, path.basename(module.id));
+		// Create a walker with TypeScript filtering for CommonJS modules
+		const commonJsWalker = new gather.Walker({
+			ignoreDirs: this.ignoreDirs,
+			ignoreFiles: ignoreFilesWithTS,
+		});
 		// Pass in the relative path prefix we should give because we aren't copying direct to the root here.
 		// Otherwise index.js in one module "overwrites" index.js in another (because they're at same relative path inside module)
-		return walker.walk(module.modulePath, dest, /^(apidoc|docs|documentation|example)$/, null, module.id); // TODO Consult some .moduleignore file in the module or something? .npmignore?
+		return commonJsWalker.walk(module.modulePath, dest, /^(apidoc|docs|documentation|example)$/, null, module.id); // TODO Consult some .moduleignore file in the module or something? .npmignore?
 	}));
 	// merge the commonJsResults over top our current combined!
 	commonJsResults.unshift(combined);
@@ -5636,9 +5647,10 @@ iOSBuilder.prototype.createAssetImageSets = async function createAssetImageSets(
 		});
 	}));
 };
+
 /**
  * This may modify the list of resources to copy!
- * @param {Map.<String,FileInfo>} launchImages launch image assets to handle
+ * @param {Map.<string,FileInfo>} launchImages launch image assets to handle
  * @param {Map.<string,FileInfo>} resourcesToCopy plain files to handle
  */
 iOSBuilder.prototype.createLaunchImageSet = async function createLaunchImageSet(launchImages, resourcesToCopy) {
@@ -6873,12 +6885,23 @@ iOSBuilder.prototype.removeFiles = function removeFiles(next) {
 };
 
 iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
-	// if we're doing a simulator build, return now since we don't care about optimizing images
-	if (this.target === 'simulator' || this.target === 'macos') {
-		return next();
+	// For simulator builds, we still want to optimize JavaScript files for faster builds
+	const isSimulatorBuild = this.target === 'simulator' || this.target === 'macos';
+
+	if (isSimulatorBuild) {
+		this.logger.info(__('Optimizing JavaScript files for simulator build'));
+	} else {
+		this.logger.info(__('Optimizing .plist and .png files'));
 	}
 
-	this.logger.info(__('Optimizing .plist and .png files'));
+	// Skip the broken incremental hook by checking if this is a patched version
+	if (this._originalOptimizeFiles && this.iosIncrementalBuilder === undefined) {
+		this.logger.debug(__('Incremental hook detected but builder missing - using improved optimization'));
+		// Reset to our improved version
+		this.optimizeFiles = this._originalOptimizeFiles;
+		delete this._originalOptimizeFiles;
+		return this.optimizeFiles(next);
+	}
 
 	const plistRegExp = /\.plist$/,
 		pngRegExp = /\.png$/,
@@ -6894,20 +6917,35 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 	// Gem JavaScript-filer i bygger-konteksten til brug af inkrementel optimering
 	this.jsFiles = jsFiles;
 
+	// Forbedret add-funktion med bedre logging
 	function add(arr, name, file) {
 		const rel = file.replace(xcodeAppDir, ''),
 			prev = previousBuildFiles[rel],
 			curr = currentBuildFiles[rel];
 
-		if (!prev || prev.hash !== curr.hash) {
+		// Tjek om filen eksisterer i current build manifest
+		if (!curr) {
+			logger.trace(__('Skipping %s - not in current build manifest', file.cyan));
+			return;
+		}
+
+		if (!prev) {
 			arr.push(file);
+			logger.trace(__('Adding %s for optimization (new file - no previous hash)', file.cyan));
+		} else if (prev.hash !== curr.hash) {
+			arr.push(file);
+			logger.trace(__('Adding %s for optimization (hash changed: %s -> %s)', file.cyan, prev.hash, curr.hash));
 		} else {
-			logger.trace(__('No change, skipping %s', file.cyan));
+			logger.trace(__('No change, skipping %s (hash: %s)', file.cyan, curr.hash));
 		}
 	}
 
 	// find all plist, png and js files
 	(function walk(dir, ignore) {
+		if (!fs.existsSync(dir)) {
+			logger.trace(__('Directory does not exist, skipping: %s', dir));
+			return;
+		}
 		fs.readdirSync(dir).forEach(function (name) {
 			if (!ignore || !ignore.test(name)) {
 				const file = path.join(dir, name);
@@ -6935,37 +6973,46 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 		});
 	}
 
-	parallel(this, [
-		function (next) {
-			async.each(plists, function (file, cb) {
-				this.logger.debug(__('Optimizing %s', file.cyan));
-				appc.subprocess.run('plutil', [ '-convert', 'binary1', file ], cb);
-			}.bind(this), next);
-		},
+	// Create array of optimization tasks based on build type
+	const optimizationTasks = [];
 
-		function (next) {
-			if (!fs.existsSync(this.xcodeEnv.executables.pngcrush)) {
-				this.logger.warn(__('Unable to find pngcrush in Xcode directory, skipping image optimization'));
-				return next();
+	// Only optimize plists and PNGs for device builds
+	if (!isSimulatorBuild) {
+		optimizationTasks.push(
+			function (next) {
+				async.each(plists, function (file, cb) {
+					this.logger.debug(__('Optimizing %s', file.cyan));
+					appc.subprocess.run('plutil', [ '-convert', 'binary1', file ], cb);
+				}.bind(this), next);
+			},
+
+			function (next) {
+				if (!fs.existsSync(this.xcodeEnv.executables.pngcrush)) {
+					this.logger.warn(__('Unable to find pngcrush in Xcode directory, skipping image optimization'));
+					return next();
+				}
+
+				async.eachLimit(pngs, 5, function (file, cb) {
+					const output = file + '.tmp';
+					this.logger.debug(__('Optimizing %s', file.cyan));
+					appc.subprocess.run(this.xcodeEnv.executables.pngcrush, [ '-q', '-iphone', '-f', 0, file, output ], function (code) {
+						if (code) {
+							this.logger.error(__('Failed to optimize %s (code %s)', file, code));
+						} else if (fs.existsSync(output)) {
+							fs.existsSync(file) && fs.unlinkSync(file);
+							fs.renameSync(output, file);
+						} else {
+							this.logger.warn(__('Unable to optimize %s; invalid png?', file));
+						}
+						cb();
+					}.bind(this));
+				}.bind(this), next);
 			}
+		);
+	}
 
-			async.eachLimit(pngs, 5, function (file, cb) {
-				const output = file + '.tmp';
-				this.logger.debug(__('Optimizing %s', file.cyan));
-				appc.subprocess.run(this.xcodeEnv.executables.pngcrush, [ '-q', '-iphone', '-f', 0, file, output ], function (code) {
-					if (code) {
-						this.logger.error(__('Failed to optimize %s (code %s)', file, code));
-					} else if (fs.existsSync(output)) {
-						fs.existsSync(file) && fs.unlinkSync(file);
-						fs.renameSync(output, file);
-					} else {
-						this.logger.warn(__('Unable to optimize %s; invalid png?', file));
-					}
-					cb();
-				}.bind(this));
-			}.bind(this), next);
-		},
-
+	// Always optimize JavaScript files (for both simulator and device builds)
+	optimizationTasks.push(
 		function (next) {
 			// JavaScript optimering
 			async.each(jsFiles, function (file, cb) {
@@ -7011,7 +7058,9 @@ iOSBuilder.prototype.optimizeFiles = function optimizeFiles(next) {
 				}
 			}.bind(this), next);
 		}
-	], next);
+	);
+
+	parallel(this, optimizationTasks, next);
 };
 
 iOSBuilder.prototype.invokeXcodeBuild = async function invokeXcodeBuild(next) {

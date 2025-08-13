@@ -73,8 +73,11 @@ import android.view.ViewTreeObserver.OnPreDrawListener;
 import android.view.animation.Animation;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import ti.modules.titanium.ui.UIModule;
+import androidx.core.graphics.ColorUtils;
 
 /**
  * This class is for Titanium View implementations, that correspond with TiViewProxy.
@@ -169,7 +172,7 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 	{
 		this.proxy = proxy;
 		this.layoutParams = new TiCompositeLayout.LayoutParams();
-		
+
 		// Track view creation for debugging
 		KrollLifecycleTracker.trackViewCreated(this);
 	}
@@ -830,10 +833,12 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 
 				if (this.nativeView != null) {
 					if (d.containsKeyAndNotNull(TiC.PROPERTY_BACKGROUND_COLOR)) {
-						this.nativeView.setBackgroundColor(
-							TiConvert.toColor(d, TiC.PROPERTY_BACKGROUND_COLOR, proxy.getActivity()));
+						int bgColor = TiConvert.toColor(d, TiC.PROPERTY_BACKGROUND_COLOR, proxy.getActivity());
+						this.nativeView.setBackgroundColor(bgColor);
+						onBackgroundColorChanged(bgColor);
 					} else {
 						this.nativeView.setBackground(null);
+						onBackgroundColorChanged(Color.TRANSPARENT);
 					}
 				}
 			} else {
@@ -850,6 +855,7 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 						if (newBackground
 							|| (key.equals(TiC.PROPERTY_OPACITY) || key.equals(TiC.PROPERTY_BACKGROUND_COLOR))) {
 							background.setBackgroundColor(bgColor);
+							onBackgroundColorChanged(bgColor);
 						}
 					}
 				}
@@ -1168,6 +1174,10 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		if (!nativeViewNull && d.containsKeyAndNotNull(TiC.PROPERTY_TRANSITION_NAME)) {
 			ViewCompat.setTransitionName(nativeView, d.getString(TiC.PROPERTY_TRANSITION_NAME));
 		}
+
+		if (d.containsKey(TiC.PROPERTY_ADAPTIVE_CONTRAST)) {
+			setAdaptiveContrast(TiConvert.toBoolean(d, TiC.PROPERTY_ADAPTIVE_CONTRAST, false));
+		}
 	}
 
 	private void setAnchor(HashMap point)
@@ -1224,27 +1234,43 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 	private void setClipMode(int clipMode)
 	{
 		if (nativeView == null) {
+			Log.w(TAG, "setClipMode: nativeView is null, returning early");
 			return;
 		}
-
 		TiViewProxy currentProxy = proxy;
+		int depth = 0;
+
 		while (currentProxy.getParent() != null) {
-			TiUIView uiView = currentProxy.getOrCreateView();
+			depth++;
+			TiUIView uiView = currentProxy.peekView();
 			if (uiView != null) {
 				View outerView = uiView.getOuterView();
 				if (outerView instanceof ViewGroup viewGroup) {
-					viewGroup.setClipChildren(clipMode != UIModule.CLIP_MODE_DISABLED);
+					boolean shouldClip = (clipMode != UIModule.CLIP_MODE_DISABLED);
+
+					viewGroup.setClipChildren(shouldClip);
+					// Force a layout/redraw to apply clipping changes
+					outerView.invalidate();
+					outerView.requestLayout();
+				} else {
+					Log.d(TAG, "setClipMode: [" + depth + "] outerView is not ViewGroup: "
+						+ (outerView != null ? outerView.getClass().getSimpleName() : "null"));
 				}
 			} else {
+				Log.d(TAG, "setClipMode: [" + depth + "] uiView is null for proxy=" + currentProxy.getApiName());
 				// Store clipMode for later application when view is created
 				// This is particularly important for ListView header/footer views
 				currentProxy.setProperty(TiC.PROPERTY_CLIP_MODE, clipMode);
 			}
+
 			currentProxy = currentProxy.getParent();
 			if (currentProxy.getApiName().equals("Ti.UI.Window")) {
-				return;
+				Log.d(TAG, "setClipMode: [" + depth + "] Reached Window, continuing...");
+				// Don't stop at Window - continue to process Window's parents too
 			}
 		}
+
+		Log.d(TAG, "setClipMode: Completed traversal after " + depth + " levels");
 	}
 
 	/**
@@ -1390,10 +1416,10 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		if (Log.isDebugModeEnabled()) {
 			Log.d(TAG, "Releasing: " + this, Log.DEBUG_MODE);
 		}
-		
+
 		// Track view destruction for debugging
 		KrollLifecycleTracker.trackViewDestroyed(this);
-		
+
 		releaseLongPressMotionEvent();
 		View nv = getNativeView();
 		if (nv != null) {
@@ -2462,5 +2488,87 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 				info.setLongClickable(false);
 			}
 		});
+	}
+
+	protected boolean adaptiveContrast = false;
+	protected int currentBackgroundColor = Color.TRANSPARENT;
+
+	public void setAdaptiveContrast(boolean adaptive)
+	{
+		this.adaptiveContrast = adaptive;
+		if (adaptive) {
+			updateAdaptiveColors();
+		}
+	}
+
+	/**
+	 * Updates colors of child views based on background luminance
+	 */
+	protected void updateAdaptiveColors()
+	{
+		if (!adaptiveContrast || currentBackgroundColor == Color.TRANSPARENT) {
+			return;
+		}
+
+		// Calculate luminance of current background
+		double luminance = ColorUtils.calculateLuminance(currentBackgroundColor);
+		boolean isLightBackground = luminance > 0.5;
+
+		// Update this view's native view and child TiUIViews
+		updateViewColorsForContrast(nativeView, isLightBackground);
+		
+		// Recursively update child TiUIViews
+		for (TiUIView child : children) {
+			child.updateAdaptiveColors();
+		}
+	}
+
+	/**
+	 * Updates colors in a specific view for optimal contrast
+	 * @param view The view to update
+	 * @param isLightBackground Whether the background is light (requiring dark content)
+	 */
+	private void updateViewColorsForContrast(View view, boolean isLightBackground)
+	{
+		if (view == null) {
+			return;
+		}
+		
+		// Update text color for TextViews
+		if (view instanceof TextView) {
+			TextView textView = (TextView) view;
+			int adaptiveColor = isLightBackground
+				? Color.parseColor("#212121") // Dark text for light background
+				: Color.parseColor("#FAFAFA"); // Light text for dark background
+			textView.setTextColor(adaptiveColor);
+		}
+		
+		// Update image tint for ImageViews
+		if (view instanceof ImageView) {
+			ImageView imageView = (ImageView) view;
+			int adaptiveTint = isLightBackground
+				? Color.parseColor("#424242") // Dark tint for light background
+				: Color.parseColor("#E0E0E0"); // Light tint for dark background
+			imageView.setColorFilter(adaptiveTint);
+		}
+		
+		// If this view is a ViewGroup, update its children too
+		if (view instanceof ViewGroup) {
+			ViewGroup viewGroup = (ViewGroup) view;
+			for (int i = 0; i < viewGroup.getChildCount(); i++) {
+				updateViewColorsForContrast(viewGroup.getChildAt(i), isLightBackground);
+			}
+		}
+	}
+
+	/**
+	 * Override this method in subclasses or add listener to handle background color changes
+	 */
+	protected void onBackgroundColorChanged(int color)
+	{
+		currentBackgroundColor = color;
+		if (adaptiveContrast) {
+			updateAdaptiveColors();
+		}
 	}
 }

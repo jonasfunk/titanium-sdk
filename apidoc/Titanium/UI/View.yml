@@ -1448,8 +1448,6 @@ properties:
         When set to <Titanium.UI.CLIP_MODE_DEFAULT> or when this property is not set, clipping behavior is inferred.
         See section on Clipping Behavior in <Titanium.UI.View>.
 
-        Android: Has to be on the top-level view.
-
         Defaults to `undefined`. Behaves as if set to <Titanium.UI.CLIP_MODE_DEFAULT>.
     type: Number
     platforms: [android, iphone, ipad, macos]
@@ -2003,6 +2001,45 @@ properties:
     type: Boolean
     default: false
     platforms: [android]
+
+  - name: adaptiveContrast
+    summary: |
+        Automatically adjusts view content colors based on background luminance for optimal contrast.
+        
+        When enabled, the view will automatically calculate the background luminance and adjust
+        text colors, icon tints, and other content to ensure optimal contrast. This provides
+        Safari-style adaptive behavior where content automatically switches between light and
+        dark variants based on the background.
+        
+        - Light backgrounds (luminance > 0.5): Content uses dark colors
+        - Dark backgrounds (luminance ≤ 0.5): Content uses light colors
+        
+        This is particularly useful for overlays, navigation bars, or any content that appears
+        over dynamic backgrounds with varying brightness levels.
+    type: Boolean
+    default: false
+    platforms: [android, iphone, ipad]
+    since: "12.8.0"
+    examples:
+      - title: Adaptive Navigation Overlay
+        example: |
+            ```javascript
+            // Create navigation that adapts to scrollview content
+            const navigation = Ti.UI.createView({
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                adaptiveContrast: true,  // Auto-adjust content colors
+                height: 60,
+                top: 0,
+                zIndex: 10
+            });
+            
+            const title = Ti.UI.createLabel({
+                text: 'Dynamic Title',
+                color: 'auto'  // Will be calculated based on background
+            });
+            
+            navigation.add(title);
+            ```
 
 examples:
   - title: Round View Example

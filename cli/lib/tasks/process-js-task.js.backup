@@ -132,6 +132,8 @@ class ProcessJsTask extends IncrementalFileTask {
 	/**
 	 * Does an incremental task run, processing only changed files.
 	 *
+	 * For backwards compatibiliy this will currently also call processJsFile for unchanged files.
+	 *
 	 * @param {Map<String, String>} changedFiles Map of file paths and their current file state (created, changed, deleted)
 	 * @return {Promise}
 	 */
@@ -172,8 +174,8 @@ class ProcessJsTask extends IncrementalFileTask {
 	 * we also depend on some config values from the builder this is used to
 	 * fallback to a full task run if required.
 	 *
-	 * When no files have changed, we simply restore the cached data without
-	 * reprocessing any files.
+	 * This will also dummy process the unchanged JS files again to properly
+	 * fire expected hooks and populate the builder with required data.
 	 *
 	 * @return {Promise}
 	 */
@@ -184,7 +186,6 @@ class ProcessJsTask extends IncrementalFileTask {
 			return this.doFullTaskRun();
 		}
 
-		// Restore cached data from previous run
 		this.jsFiles = this.data.jsFiles;
 		this.jsBootstrapFiles.splice(0, 0, ...this.data.jsBootstrapFiles);
 
@@ -420,11 +421,9 @@ class ProcessJsTask extends IncrementalFileTask {
 				return false;
 			}
 			this.logger.trace('Full build required, jsanalyze options changed.');
-			this.logger.trace(`Analyze options: ${JSON.stringify(this.defaultAnalyzeOptions, null, 2)}`);
 			return true;
 		}
 
-		this.logger.trace('Incremental build can proceed, analyze options unchanged.');
 		return false;
 	}
 
@@ -475,56 +474,6 @@ class ProcessJsTask extends IncrementalFileTask {
 			tiSymbols: {},
 			jsFiles: {}
 		};
-	}
-
-	/**
-	 * Override runTaskAction to add detailed logging about build decisions
-	 */
-	runTaskAction() {
-		const ChangeManager = require('appc-tasks/dist/incremental/ChangeManager').default;
-		let changeManager = new ChangeManager();
-		let fullBuild = !changeManager.load(this.incrementalDirectory);
-
-		this.inputFiles.forEach(inputPath => {
-			changeManager.monitorInputPath(inputPath);
-		});
-		this.incrementalOutputs.forEach(outputPath => {
-			changeManager.monitorOutputPath(outputPath);
-		});
-
-		let changedInputFiles = changeManager.getChangedInputFiles();
-		let changedOutputFiles = changeManager.getChangedOutputFiles();
-		let runPromise;
-
-		if (fullBuild) {
-			this.logger.trace('No incremental data found, do full task run');
-			this.logger.trace(`Incremental directory: ${this.incrementalDirectory}`);
-			runPromise = this.doFullTaskRun();
-		} else if (changedOutputFiles.size > 0) {
-			this.logger.trace(`Output files changed (${changedOutputFiles.size} files), do full task run`);
-			for (let [filePath, status] of changedOutputFiles) {
-				this.logger.trace(`  ${status}: ${filePath}`);
-			}
-			runPromise = this.doFullTaskRun();
-		} else if (changedInputFiles.size > 0) {
-			this.logger.trace(`Input files changed (${changedInputFiles.size} files), do incremental task run`);
-			for (let [filePath, status] of changedInputFiles) {
-				this.logger.trace(`  ${status}: ${filePath}`);
-			}
-			runPromise = this.doIncrementalTaskRun(changedInputFiles);
-		} else {
-			this.logger.trace('Nothing changed, skip task run');
-			runPromise = this.loadResultAndSkip();
-		}
-
-		return runPromise.then(taskResult => {
-			changeManager.updateOutputFiles(this.incrementalOutputs);
-			changeManager.write(this.incrementalDirectory);
-			return taskResult;
-		}).catch(reason => {
-			changeManager.delete(this.incrementalDirectory);
-			return Promise.reject(reason);
-		});
 	}
 }
 

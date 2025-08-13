@@ -32,6 +32,7 @@
     "cleanbuild": "node ./build/scons cleanbuild",
     "cleanbuild:local": "node ./build/scons cleanbuild -- --skip-zip",
     "cleanbuild:android": "npm run cleanbuild -- android",
+    "cleanbuild:android:local": "npm run cleanbuild:android --skip-zip",
     "cleanbuild:ios": "npm run cleanbuild -- ios",
     "commit": "git-cz",
     "deploy": "node ./build/scons install",

@@ -844,11 +844,27 @@ public class TiUIHelper
 			// set a default BS value if the dimension is still 0 and log a warning
 			if (width == 0) {
 				width = 100;
-				Log.e(TAG, "Width property is 0 for view, display view before calling toImage()", Log.DEBUG_MODE);
+				String viewClass = (view != null) ? view.getClass().getSimpleName() : "null";
+				String idInfo = null;
+				if (proxyDict != null && proxyDict.containsKey(TiC.PROPERTY_ID)) {
+					idInfo = proxyDict.getString(TiC.PROPERTY_ID);
+				}
+				String suffix = " (view=" + viewClass + (idInfo != null ? ", id=" + idInfo : "") + ")";
+				Log.e(TAG,
+					"Width property is 0 for view, display view before calling toImage()" + suffix,
+					Log.DEBUG_MODE);
 			}
 			if (height == 0) {
 				height = 100;
-				Log.e(TAG, "Height property is 0 for view, display view before calling toImage()", Log.DEBUG_MODE);
+				String viewClass = (view != null) ? view.getClass().getSimpleName() : "null";
+				String idInfo = null;
+				if (proxyDict != null && proxyDict.containsKey(TiC.PROPERTY_ID)) {
+					idInfo = proxyDict.getString(TiC.PROPERTY_ID);
+				}
+				String suffix = " (view=" + viewClass + (idInfo != null ? ", id=" + idInfo : "") + ")";
+				Log.e(TAG,
+					"Height property is 0 for view, display view before calling toImage()" + suffix,
+					Log.DEBUG_MODE);
 			}
 
 			if (view.getParent() == null) {
@@ -1242,6 +1258,12 @@ public class TiUIHelper
 	 */
 	public static String getBackgroundColorForState(TiBackgroundDrawable backgroundDrawable, int[] state)
 	{
+		return getBackgroundColorForState(backgroundDrawable, state, null);
+	}
+
+	public static String getBackgroundColorForState(TiBackgroundDrawable backgroundDrawable, int[] state,
+		KrollProxy proxy)
+	{
 		try {
 			// TiBackgroundDrawable's background can be either PaintDrawable or StateListDrawable.
 			// Handle the cases separately.
@@ -1277,19 +1299,60 @@ public class TiUIHelper
 						return strColor;
 					} else {
 						Log.w(TAG, "Background drawable of unexpected type. Expected - ColorDrawable. Found - "
-									   + drawableFromLayer.getClass().toString());
+									   + drawableFromLayer.getClass().toString() + buildProxySuffix(proxy));
 						return null;
 					}
 				} else {
 					Log.w(TAG, "Background drawable of unexpected type. Expected - LayerDrawable. Found - "
-								   + drawable.getClass().toString());
+								   + drawable.getClass().toString() + buildProxySuffix(proxy));
 					return null;
 				}
 			}
 		} catch (Exception e) {
-			Log.w(TAG, e.toString());
+			Log.w(TAG, e.toString() + buildProxySuffix(proxy));
 		}
 		return null;
+	}
+
+	private static String buildProxySuffix(KrollProxy proxy)
+	{
+		if (proxy == null) {
+			return "";
+		}
+		String api = null;
+		try {
+			api = proxy.getApiName();
+		} catch (Throwable t) {
+			api = null;
+		}
+		String id = null;
+		try {
+			Object v = proxy.getProperty(TiC.PROPERTY_ID);
+			if (v != null) {
+				id = String.valueOf(v);
+			}
+		} catch (Throwable t) {
+			id = null;
+		}
+		String url = null;
+		try {
+			if (proxy.getCreationUrl() != null) {
+				url = proxy.getCreationUrl().getNormalizedUrl();
+			}
+		} catch (Throwable t) {
+			url = null;
+		}
+		StringBuilder sb = new StringBuilder();
+		sb.append(" (proxy=");
+		sb.append(api != null ? api : "?");
+		if (id != null) {
+			sb.append(", id=").append(id);
+		}
+		if (url != null) {
+			sb.append(", url=").append(url);
+		}
+		sb.append(")");
+		return sb.toString();
 	}
 
 	/**

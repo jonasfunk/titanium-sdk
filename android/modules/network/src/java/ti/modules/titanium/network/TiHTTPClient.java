@@ -221,6 +221,8 @@ public class TiHTTPClient
 			if (charset.isEmpty()) {
 				charset = "UTF-8";
 			}
+			// Persist detected/default charset to avoid fallback detection (and noisy logs)
+			this.charset = charset;
 			responseData = null;
 			responseText = null;
 
@@ -579,6 +581,13 @@ public class TiHTTPClient
 			return this.responseText;
 		}
 
+		// If no body was received at all (empty response), return empty string without error logging.
+		// Common for 204/304 or endpoints that deliberately return empty content.
+		if (this.responseData == null && this.responseOut == null) {
+			this.responseText = "";
+			return this.responseText;
+		}
+
 		// First try decoding the response data using the charset
 		// specified in the response content-type header.
 		String text = null;
@@ -610,10 +619,13 @@ public class TiHTTPClient
 			}
 		}
 
-		// Log an error if we've failed to transcode the response above.
+		// Log an error if we've failed to transcode the response above and there was supposed to be a body.
 		if (text == null) {
-			Log.e(TAG, "Could not decode response text.");
+			// If nothing indicates a body, do not log an error; otherwise log.
 			text = "";
+			if (this.responseOut instanceof ByteArrayOutputStream || this.responseData != null) {
+				Log.e(TAG, "Could not decode response text.");
+			}
 		}
 
 		// Store the response text for quick access later, but only if we've finished receiving the response.

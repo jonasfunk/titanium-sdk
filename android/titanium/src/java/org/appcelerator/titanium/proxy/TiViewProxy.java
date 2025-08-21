@@ -1525,36 +1525,65 @@ public abstract class TiViewProxy extends KrollProxy
 						widthMode = android.view.View.MeasureSpec.AT_MOST;
 					}
 
-					int wSpec = android.view.View.MeasureSpec.makeMeasureSpec(widthPx, widthMode);
-					int hSpec = android.view.View.MeasureSpec.makeMeasureSpec(heightPx, heightMode);
+					final int fWidthPx = widthPx;
+					final int fHeightPx = heightPx;
+					final int fWidthMode = widthMode;
+					final int fHeightMode = heightMode;
 
-					// Perform measure on the native view (works even if not attached)
-					nv.measure(wSpec, hSpec);
-					int measuredW = nv.getMeasuredWidth();
-					int measuredH = nv.getMeasuredHeight();
+					Runnable doMeasure = new Runnable() {
+						@Override
+						public void run()
+						{
+							try {
+								int wSpec = android.view.View.MeasureSpec.makeMeasureSpec(fWidthPx, fWidthMode);
+								int hSpec = android.view.View.MeasureSpec.makeMeasureSpec(fHeightPx, fHeightMode);
 
-					// Convert to default units (DIP)
-					View unitView = nv;
-					try {
-						View decorView = TiApplication.getAppRootOrCurrentActivity().getWindow().getDecorView();
-						if (decorView != null) {
-							unitView = decorView;
+								// Perform measure on the native view (works even if not attached)
+								nv.measure(wSpec, hSpec);
+								int measuredW = nv.getMeasuredWidth();
+								int measuredH = nv.getMeasuredHeight();
+
+								// Convert to default units (DIP)
+								View unitView = nv;
+								try {
+									View decorView = TiApplication.getAppRootOrCurrentActivity()
+										.getWindow().getDecorView();
+									if (decorView != null) {
+										unitView = decorView;
+									}
+								} catch (Throwable ignored) {
+								}
+								TiDimension dw = new TiDimension(measuredW, TiDimension.TYPE_WIDTH);
+								TiDimension dh = new TiDimension(measuredH, TiDimension.TYPE_HEIGHT);
+								double outW = dw.getAsDefault(unitView);
+								double outH = dh.getAsDefault(unitView);
+
+								KrollDict result = new KrollDict();
+								result.put(TiC.PROPERTY_WIDTH, outW);
+								result.put(TiC.PROPERTY_HEIGHT, outH);
+
+								if (callback != null) {
+									callback.callAsync(getKrollObject(), new Object[] { result });
+								}
+								promise.resolve(result);
+							} catch (Throwable t) {
+								if (callback != null) {
+									KrollDict err = new KrollDict();
+									err.putCodeAndMessage(-1, t.getMessage());
+									callback.callAsync(getKrollObject(), new Object[] { err });
+								}
+								promise.reject(new Throwable(t.getMessage()));
+							}
 						}
-					} catch (Throwable ignored) {
-					}
-					TiDimension dw = new TiDimension(measuredW, TiDimension.TYPE_WIDTH);
-					TiDimension dh = new TiDimension(measuredH, TiDimension.TYPE_HEIGHT);
-					double outW = dw.getAsDefault(unitView);
-					double outH = dh.getAsDefault(unitView);
+					};
 
-					KrollDict result = new KrollDict();
-					result.put(TiC.PROPERTY_WIDTH, outW);
-					result.put(TiC.PROPERTY_HEIGHT, outH);
-
-					if (callback != null) {
-						callback.callAsync(getKrollObject(), new Object[] { result });
+					boolean attached = (nv.getParent() != null);
+					boolean defer = attached && (tiv.isLayoutPending() || nv.isLayoutRequested());
+					if (defer) {
+						nv.post(doMeasure);
+					} else {
+						doMeasure.run();
 					}
-					promise.resolve(result);
 				} catch (Throwable t) {
 					if (callback != null) {
 						KrollDict err = new KrollDict();

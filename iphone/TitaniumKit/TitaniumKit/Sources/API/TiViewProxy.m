@@ -802,30 +802,40 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
           CGFloat constraintW = optWidth > 0 ? optWidth : (maxWidth > 0 ? maxWidth : screenSize.width);
           CGFloat constraintH = optHeight > 0 ? optHeight : (maxHeight > 0 ? maxHeight : CGFLOAT_MAX);
 
+          void (^doMeasure)(void) = ^{
 #ifndef TI_USE_AUTOLAYOUT
-          // Compute width/height using autosizing helpers
-          CGFloat width = optWidth > 0 ? optWidth : [self autoWidthForSize:CGSizeMake(constraintW, constraintH == CGFLOAT_MAX ? 1000 : constraintH)];
-          CGFloat height;
-          if (optHeight > 0) {
-            height = optHeight;
-          } else {
-            height = [self autoHeightForSize:CGSizeMake(width, (constraintH == CGFLOAT_MAX ? 1000000 : constraintH))];
-          }
+            // Compute width/height using autosizing helpers
+            CGFloat width = optWidth > 0 ? optWidth : [self autoWidthForSize:CGSizeMake(constraintW, constraintH == CGFLOAT_MAX ? 1000 : constraintH)];
+            CGFloat height;
+            if (optHeight > 0) {
+              height = optHeight;
+            } else {
+              height = [self autoHeightForSize:CGSizeMake(width, (constraintH == CGFLOAT_MAX ? 1000000 : constraintH))];
+            }
 #else
-          CGSize s = [myview sizeThatFits:CGSizeMake(constraintW, constraintH)];
-          CGFloat width = (optWidth > 0) ? optWidth : s.width;
-          CGFloat height = (optHeight > 0) ? optHeight : s.height;
+            CGSize s = [myview sizeThatFits:CGSizeMake(constraintW, constraintH)];
+            CGFloat width = (optWidth > 0) ? optWidth : s.width;
+            CGFloat height = (optHeight > 0) ? optHeight : s.height;
 #endif
 
-          NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:2];
-          // Values are in points (DIP)
-          result[@"width"] = NUMFLOAT(width);
-          result[@"height"] = NUMFLOAT(height);
+            NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:2];
+            // Values are in points (DIP)
+            result[@"width"] = NUMFLOAT(width);
+            result[@"height"] = NUMFLOAT(height);
 
-          if (callback && ![callback isUndefined]) {
-            [callback callWithArguments:@[ result ]];
+            if (callback && ![callback isUndefined]) {
+              [callback callWithArguments:@[ result ]];
+            }
+            [promise resolve:@[ result ]];
+          };
+
+          BOOL attached = wasAttached && (myview.window != nil);
+          BOOL needsDeferral = attached && (CGSizeEqualToSize(myview.bounds.size, CGSizeZero));
+          if (needsDeferral) {
+            dispatch_async(dispatch_get_main_queue(), doMeasure);
+          } else {
+            doMeasure();
           }
-          [promise resolve:@[ result ]];
         } @catch (NSException *ex) {
           if (callback && ![callback isUndefined]) {
             JSValue *err = [JSValue valueWithNewErrorFromMessage:ex.reason inContext:[self currentContext]];

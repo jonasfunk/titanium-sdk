@@ -870,7 +870,7 @@ methods:
     returns:
       summary: On SDK 10+, this method will return a `Promise` that resolves to `{ width, height }` in default units.
       type: Promise<Dimension>
-    since: { android: "next", iphone: "next", ipad: "next", macos: "next" }
+    since: "12.9.0"
     platforms: [android, iphone, ipad, macos]
 
   - name: add

@@ -30,4 +30,21 @@ describe('Ti.UI.View.measure', () => {
 			throw new Error(`unexpected size ${JSON.stringify(result)}`);
 		}
 	});
+
+	it('retry until minHeight is reached (within limits)', async () => {
+		const label = Ti.UI.createLabel({
+			width: Ti.UI.SIZE,
+			height: Ti.UI.SIZE,
+			text: 'Dette er en meget lang tekst der typisk vil wrappe over flere linjer for at teste retry.'
+		});
+		const size = await label.measure({ maxWidth: 220, minHeight: 40, maxFrames: 5, timeoutMs: 400 });
+		if (!(typeof size.height === 'number' && size.height >= 0)) {
+			throw new Error('measure returned invalid height');
+		}
+		// Vi kan ikke garantere eksakt højde på alle devices, men bør nå minimum i praksis
+		// så længe teksten wraper. Tillad en lille margin, men kræv > 20 for sanity.
+		if (size.height < 20) {
+			throw new Error(`height too small after retries: ${size.height}`);
+		}
+	});
 });

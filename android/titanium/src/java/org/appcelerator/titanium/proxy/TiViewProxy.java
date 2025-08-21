@@ -1537,10 +1537,10 @@ public abstract class TiViewProxy extends KrollProxy
 							}
 						}
 						if (options.containsKey("maxFrames")) {
-							maxFrames = TiConvert.toInt(options, "maxFrames", maxFrames);
+							maxFrames = TiConvert.toInt(options.get("maxFrames"), maxFrames);
 						}
 						if (options.containsKey("timeoutMs")) {
-							timeoutMs = TiConvert.toInt(options, "timeoutMs", timeoutMs);
+							timeoutMs = TiConvert.toInt(options.get("timeoutMs"), timeoutMs);
 						}
 					}
 

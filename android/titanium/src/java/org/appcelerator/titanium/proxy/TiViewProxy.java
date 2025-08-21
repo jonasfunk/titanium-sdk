@@ -41,6 +41,7 @@ import android.graphics.Bitmap.Config;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Message;
+import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewAnimationUtils;
@@ -1483,6 +1484,10 @@ public abstract class TiViewProxy extends KrollProxy
 					int heightPx = 0;
 					int widthMode = android.view.View.MeasureSpec.UNSPECIFIED;
 					int heightMode = android.view.View.MeasureSpec.UNSPECIFIED;
+					int minWidthPx = -1;
+					int minHeightPx = -1;
+					int maxFrames = 3;
+					int timeoutMs = 200;
 
 					if (options != null) {
 						if (options.containsKey(TiC.PROPERTY_WIDTH)) {
@@ -1501,6 +1506,14 @@ public abstract class TiViewProxy extends KrollProxy
 							}
 						}
 
+						// Minimums and retry controls
+						if (options.containsKey("minWidth")) {
+							TiDimension dim = TiConvert.toTiDimension(options, "minWidth", TiDimension.TYPE_WIDTH);
+							if (dim != null) {
+								minWidthPx = (int) dim.getPixels(nv);
+							}
+						}
+
 						if (options.containsKey(TiC.PROPERTY_HEIGHT)) {
 							TiDimension dim = TiConvert.toTiDimension(
 								options, TiC.PROPERTY_HEIGHT, TiDimension.TYPE_HEIGHT);
@@ -1516,6 +1529,19 @@ public abstract class TiViewProxy extends KrollProxy
 								heightMode = android.view.View.MeasureSpec.AT_MOST;
 							}
 						}
+
+						if (options.containsKey("minHeight")) {
+							TiDimension dim = TiConvert.toTiDimension(options, "minHeight", TiDimension.TYPE_HEIGHT);
+							if (dim != null) {
+								minHeightPx = (int) dim.getPixels(nv);
+							}
+						}
+						if (options.containsKey("maxFrames")) {
+							maxFrames = TiConvert.toInt(options, "maxFrames", maxFrames);
+						}
+						if (options.containsKey("timeoutMs")) {
+							timeoutMs = TiConvert.toInt(options, "timeoutMs", timeoutMs);
+						}
 					}
 
 					// Provide sensible defaults for width to allow natural wrap content measurement.
@@ -1530,6 +1556,8 @@ public abstract class TiViewProxy extends KrollProxy
 					final int fWidthMode = widthMode;
 					final int fHeightMode = heightMode;
 
+					final int[] framesLeft = new int[] { maxFrames };
+					final long deadline = SystemClock.uptimeMillis() + Math.max(0, timeoutMs);
 					Runnable doMeasure = new Runnable() {
 						@Override
 						public void run()
@@ -1542,6 +1570,17 @@ public abstract class TiViewProxy extends KrollProxy
 								nv.measure(wSpec, hSpec);
 								int measuredW = nv.getMeasuredWidth();
 								int measuredH = nv.getMeasuredHeight();
+
+								// If minimum constraints requested, retry until satisfied or limits reached
+								boolean widthOk = (minWidthPx <= 0) || (measuredW >= minWidthPx);
+								boolean heightOk = (minHeightPx <= 0) || (measuredH >= minHeightPx);
+								if (!(widthOk && heightOk)
+									&& (framesLeft[0] > 0)
+									&& (SystemClock.uptimeMillis() < deadline)) {
+									framesLeft[0]--;
+									nv.post(this);
+									return;
+								}
 
 								// Convert to default units (DIP)
 								View unitView = nv;

@@ -829,12 +829,42 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
             [promise resolve:@[ result ]];
           };
 
+          // Retry if minimum constraints were requested and not yet satisfied
+          __block NSInteger framesLeft = 3;
+          __block BOOL satisfied = NO;
+          CGFloat minWidth = 0;
+          CGFloat minHeight = 0;
+          if ([options isKindOfClass:[NSDictionary class]]) {
+            id mwmin = [options objectForKey:@"minWidth"];
+            id mhmin = [options objectForKey:@"minHeight"];
+            if (mwmin) {
+              minWidth = [TiUtils floatValue:mwmin];
+            }
+            if (mhmin) {
+              minHeight = [TiUtils floatValue:mhmin];
+            }
+            id mf = [options objectForKey:@"maxFrames"];
+            if (mf) {
+              framesLeft = (NSInteger)[TiUtils intValue:mf];
+            }
+          }
+
+          void (^tryMeasure)(void) = ^{
+            doMeasure();
+            CGSize s = [myview bounds].size;
+            satisfied = ((minWidth <= 0 || s.width >= minWidth) && (minHeight <= 0 || s.height >= minHeight));
+            if (!satisfied && framesLeft > 0) {
+              framesLeft--;
+              dispatch_async(dispatch_get_main_queue(), tryMeasure);
+            }
+          };
+
           BOOL attached = wasAttached && (myview.window != nil);
           BOOL needsDeferral = attached && (CGSizeEqualToSize(myview.bounds.size, CGSizeZero));
           if (needsDeferral) {
-            dispatch_async(dispatch_get_main_queue(), doMeasure);
+            dispatch_async(dispatch_get_main_queue(), tryMeasure);
           } else {
-            doMeasure();
+            tryMeasure();
           }
         } @catch (NSException *ex) {
           if (callback && ![callback isUndefined]) {

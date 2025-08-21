@@ -863,6 +863,18 @@ methods:
           - name: maxHeight
             type: [Number, String]
             summary: Maximum height (AT_MOST) used for measuring.
+          - name: minWidth
+            type: [Number, String]
+            summary: Minimum width required; if not met, measure retries up to `maxFrames`/`timeoutMs`.
+          - name: minHeight
+            type: [Number, String]
+            summary: Minimum height required; if not met, measure retries up to `maxFrames`/`timeoutMs`.
+          - name: maxFrames
+            type: Number
+            summary: Maximum number of frames to defer/retry measuring when constraints not satisfied. Default 3.
+          - name: timeoutMs
+            type: Number
+            summary: Optional timeout in milliseconds for retry loop. Default 200ms.
       - name: callback
         type: Callback<Dimension>
         optional: true

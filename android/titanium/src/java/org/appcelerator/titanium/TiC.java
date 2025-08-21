@@ -406,6 +406,7 @@ public class TiC
 	public static final String PROPERTY_DEFAULT_ITEM_TEMPLATE = "defaultItemTemplate";
 	public static final String PROPERTY_DEFAULTS = "defaults";
 	public static final String PROPERTY_DELAY = "delay";
+	public static final String PROPERTY_DAMPING_RATIO = "dampingRatio";
 	public static final String PROPERTY_DELETE_INTENT = "deleteIntent";
 	public static final String PROPERTY_DEST = "dest";
 	public static final String PROPERTY_DEST_POSITION = "destPosition";
@@ -418,6 +419,7 @@ public class TiC
 	public static final String PROPERTY_DRAWER_INDICATOR_ENABLED = "drawerIndicatorEnabled";
 	public static final String PROPERTY_DRAWER_LOCK_MODE = "drawerLockMode";
 	public static final String PROPERTY_DURATION = "duration";
+	public static final String PROPERTY_SPRING_VELOCITY = "springVelocity";
 	public static final String PROPERTY_EDITABLE = "editable";
 	public static final String PROPERTY_EDITING = "editing";
 	public static final String PROPERTY_ELEVATION = "elevation";

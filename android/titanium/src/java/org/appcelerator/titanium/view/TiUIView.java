@@ -887,10 +887,15 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 						handleBorderProperty(key, newValue);
 					}
 
-					// TIMOB-24898: disable HW acceleration to allow transparency
-					// when the backgroundColor alpha channel has been set
+					// TIMOB-24898: On older Android versions, transparency + rounded corners could require SW layer.
+					// Limit disabling HW acceleration to pre-Marshmallow. On newer versions, prefer HW with outline clipping.
 					if ((bgColor != null) && (Color.alpha(bgColor) < 255)) {
-						disableHWAcceleration();
+						if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+							disableHWAcceleration();
+						} else if (borderView != null && borderView.hasRadius()) {
+							// Use hardware-accelerated clipping via outline where possible (API 21+)
+							borderView.setClipToOutline(true);
+						}
 					}
 				}
 
@@ -992,6 +997,8 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		} else if (key.equals(TiC.PROPERTY_CLIP_MODE)) {
 			if (nativeView != null) {
 				setClipMode(TiConvert.toInt(newValue, UIModule.CLIP_MODE_DEFAULT));
+				// Re-apply after next layout to ensure hierarchy updates are captured.
+				reapplyClipModeOnNextLayout(TiConvert.toInt(newValue, UIModule.CLIP_MODE_DEFAULT));
 			}
 		} else if (Log.isDebugModeEnabled()) {
 			Log.d(TAG, "Unhandled property key: " + key, Log.DEBUG_MODE);
@@ -1168,7 +1175,10 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		}
 
 		if (d.containsKey(TiC.PROPERTY_CLIP_MODE) && !nativeViewNull) {
-			setClipMode(TiConvert.toInt(d.getInt(TiC.PROPERTY_CLIP_MODE), UIModule.CLIP_MODE_DEFAULT));
+			final int clip = TiConvert.toInt(d.getInt(TiC.PROPERTY_CLIP_MODE), UIModule.CLIP_MODE_DEFAULT);
+			setClipMode(clip);
+			// Re-apply after next layout to catch late parent creations/re-parenting.
+			reapplyClipModeOnNextLayout(clip);
 		}
 
 		if (!nativeViewNull && d.containsKeyAndNotNull(TiC.PROPERTY_TRANSITION_NAME)) {
@@ -1249,6 +1259,10 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 					boolean shouldClip = (clipMode != UIModule.CLIP_MODE_DISABLED);
 
 					viewGroup.setClipChildren(shouldClip);
+					// When disabling clipping, also disable clipping to padding for more predictable behavior.
+					if (!shouldClip) {
+						viewGroup.setClipToPadding(false);
+					}
 					// Force a layout/redraw to apply clipping changes
 					outerView.invalidate();
 					outerView.requestLayout();
@@ -1271,6 +1285,32 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 		}
 
 		Log.d(TAG, "setClipMode: Completed traversal after " + depth + " levels");
+	}
+
+	/**
+	 * Re-applies the given clip mode once after the next layout pass of this view's outerView.
+	 * This helps ensure hierarchy changes that occur during layout (e.g. late parent creation or re-parenting)
+	 * also receive the correct clipping settings.
+	 */
+	private void reapplyClipModeOnNextLayout(final int clipMode)
+	{
+		final View outer = getOuterView();
+		if (outer == null) {
+			return;
+		}
+		outer.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+			@Override
+			public void onLayoutChange(View v, int left, int top, int right, int bottom,
+				int oldLeft, int oldTop, int oldRight, int oldBottom)
+			{
+				try {
+					v.removeOnLayoutChangeListener(this);
+				} catch (Throwable ignore) {
+					// No-op
+				}
+				setClipMode(clipMode);
+			}
+		});
 	}
 
 	/**
@@ -1639,10 +1679,14 @@ public abstract class TiUIView implements KrollProxyListener, OnFocusChangeListe
 				borderView.invalidate();
 			}
 
-			// TIMOB-24898: disable HW acceleration to allow transparency
-			// when the backgroundColor alpha channel has been set
+			// TIMOB-24898: On older Android versions, transparency + rounded corners could require SW layer.
+			// Limit disabling HW acceleration to pre-Marshmallow. On newer versions, prefer HW with outline clipping.
 			if ((bgColor != null) && (Color.alpha(bgColor) < 255)) {
-				disableHWAcceleration();
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+					disableHWAcceleration();
+				} else if (borderView != null && borderView.hasRadius()) {
+					borderView.setClipToOutline(true);
+				}
 			}
 		}
 	}

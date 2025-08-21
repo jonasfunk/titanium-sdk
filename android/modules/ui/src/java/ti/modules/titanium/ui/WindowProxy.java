@@ -492,6 +492,17 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 			}
 		}
 
+		// Allow changing soft input mode at runtime by applying to the active window
+		if (name.equals(TiC.PROPERTY_WINDOW_SOFT_INPUT_MODE)) {
+			if (windowActivity != null && windowActivity.get() != null) {
+				AppCompatActivity activity = windowActivity.get();
+				int mode = TiConvert.toInt(value, -1);
+				if (mode != -1) {
+					activity.getWindow().setSoftInputMode(mode);
+				}
+			}
+		}
+
 		if (name.equals(TiC.PROPERTY_UI_FLAGS)) {
 			if (windowActivity != null && windowActivity.get() != null) {
 				AppCompatActivity activity = windowActivity.get();

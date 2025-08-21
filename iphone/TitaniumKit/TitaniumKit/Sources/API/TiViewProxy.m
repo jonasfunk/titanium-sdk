@@ -17,6 +17,7 @@
 #import "TiUIWindowProxy.h"
 #import "TiWindowProxy.h"
 #import <QuartzCore/QuartzCore.h>
+#import <TitaniumKit/KrollPromise.h>
 #import <libkern/OSAtomic.h>
 #import <pthread.h>
 
@@ -741,6 +742,101 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
       (callback == nil));
 
   return blob;
+}
+
+// measure(options?, callback?) -> Promise
+- (JSValue *)measure:(id)args
+{
+  NSDictionary *options = nil;
+  JSValue *callback = nil;
+
+  if ([args isKindOfClass:[NSArray class]] && [args count] > 0) {
+    id first = [args objectAtIndex:0];
+    if ([first isKindOfClass:[NSDictionary class]]) {
+      options = (NSDictionary *)first;
+    }
+    if ([args count] > 1) {
+      id second = [args objectAtIndex:1];
+      if ([second isKindOfClass:[JSValue class]]) {
+        callback = (JSValue *)second;
+      }
+    }
+  }
+
+  KrollPromise *promise = [[[KrollPromise alloc] initInContext:[self currentContext]] autorelease];
+
+  TiThreadPerformOnMainThread(
+      ^{
+        @try {
+          BOOL wasAttached = [self viewAttached];
+          if (!wasAttached) {
+            [self windowWillOpen];
+          }
+
+          TiUIView *myview = [self view];
+
+          CGFloat optWidth = 0;
+          CGFloat optHeight = 0;
+          CGFloat maxWidth = 0;
+          CGFloat maxHeight = 0;
+          if ([options isKindOfClass:[NSDictionary class]]) {
+            id w = [options objectForKey:@"width"];
+            id h = [options objectForKey:@"height"];
+            id mw = [options objectForKey:@"maxWidth"];
+            id mh = [options objectForKey:@"maxHeight"];
+            if (w != nil) {
+              optWidth = [TiUtils floatValue:w];
+            }
+            if (h != nil) {
+              optHeight = [TiUtils floatValue:h];
+            }
+            if (mw != nil) {
+              maxWidth = [TiUtils floatValue:mw];
+            }
+            if (mh != nil) {
+              maxHeight = [TiUtils floatValue:mh];
+            }
+          }
+
+          CGSize screenSize = [UIScreen mainScreen].bounds.size;
+          CGFloat constraintW = optWidth > 0 ? optWidth : (maxWidth > 0 ? maxWidth : screenSize.width);
+          CGFloat constraintH = optHeight > 0 ? optHeight : (maxHeight > 0 ? maxHeight : CGFLOAT_MAX);
+
+#ifndef TI_USE_AUTOLAYOUT
+          // Compute width/height using autosizing helpers
+          CGFloat width = optWidth > 0 ? optWidth : [self autoWidthForSize:CGSizeMake(constraintW, constraintH == CGFLOAT_MAX ? 1000 : constraintH)];
+          CGFloat height;
+          if (optHeight > 0) {
+            height = optHeight;
+          } else {
+            height = [self autoHeightForSize:CGSizeMake(width, (constraintH == CGFLOAT_MAX ? 1000000 : constraintH))];
+          }
+#else
+          CGSize s = [myview sizeThatFits:CGSizeMake(constraintW, constraintH)];
+          CGFloat width = (optWidth > 0) ? optWidth : s.width;
+          CGFloat height = (optHeight > 0) ? optHeight : s.height;
+#endif
+
+          NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:2];
+          // Values are in points (DIP)
+          result[@"width"] = NUMFLOAT(width);
+          result[@"height"] = NUMFLOAT(height);
+
+          if (callback && ![callback isUndefined]) {
+            [callback callWithArguments:@[ result ]];
+          }
+          [promise resolve:@[ result ]];
+        } @catch (NSException *ex) {
+          if (callback && ![callback isUndefined]) {
+            JSValue *err = [JSValue valueWithNewErrorFromMessage:ex.reason inContext:[self currentContext]];
+            [callback callWithArguments:@[ err ]];
+          }
+          [promise rejectWithErrorMessage:ex.reason];
+        }
+      },
+      NO);
+
+  return promise.JSValue;
 }
 
 - (TiPoint *)contentOffset

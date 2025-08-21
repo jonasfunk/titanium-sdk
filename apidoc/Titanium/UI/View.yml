@@ -840,6 +840,39 @@ events:
         since: "9.3.0"
 
 methods:
+  - name: measure
+    summary: Measures the view and returns the computed size in default units (DIP/points), even if not attached.
+    description: |
+        Computes the view's natural width/height using layout measurement. Supports optional constraints.
+        Works for unattached views. Returns numeric width/height in the project's default unit.
+    parameters:
+      - name: options
+        type: Dictionary
+        optional: true
+        summary: Optional constraints.
+        properties:
+          - name: width
+            type: [Number, String]
+            summary: Exact width constraint used for measuring.
+          - name: height
+            type: [Number, String]
+            summary: Exact height constraint used for measuring.
+          - name: maxWidth
+            type: [Number, String]
+            summary: Maximum width (AT_MOST) used for measuring. Defaults to screen width if neither width nor maxWidth is provided.
+          - name: maxHeight
+            type: [Number, String]
+            summary: Maximum height (AT_MOST) used for measuring.
+      - name: callback
+        type: Callback<Dimension>
+        optional: true
+        summary: Optional callback receiving `{ width, height }`.
+    returns:
+      summary: On SDK 10+, this method will return a `Promise` that resolves to `{ width, height }` in default units.
+      type: Promise<Dimension>
+    since: { android: "next", iphone: "next", ipad: "next", macos: "next" }
+    platforms: [android, iphone, ipad, macos]
+
   - name: add
     summary: Adds a child to this view's hierarchy.
     description: |

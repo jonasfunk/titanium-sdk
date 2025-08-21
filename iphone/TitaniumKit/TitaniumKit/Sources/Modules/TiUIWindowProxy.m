@@ -12,6 +12,7 @@
 #import "TiLayoutQueue.h"
 #import "TiUIViewProxy.h"
 #import "Webcolor.h"
+#import <TitaniumKit/KrollPromise.h>
 
 // this is how long we should wait on the new JS context to be loaded
 // holding the UI thread before we return during an window open. we
@@ -138,6 +139,13 @@
 - (NSString *)apiName
 {
   return @"Ti.UI.Window";
+}
+
+// measureActualDimensions(options?, callback?) -> Promise<{ width, height }>
+- (JSValue *)measureActualDimensions:(id)args
+{
+  // Delegate to TiViewProxy's measure to compute size of content view pre-open
+  return [super measure:args];
 }
 
 - (void)dealloc

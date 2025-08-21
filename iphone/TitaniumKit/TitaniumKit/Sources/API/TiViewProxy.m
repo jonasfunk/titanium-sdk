@@ -879,6 +879,12 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
   return promise.JSValue;
 }
 
+// measureActualDimensions(options?, callback?) -> Promise (alias of measure)
+- (JSValue *)measureActualDimensions:(id)args
+{
+  return [self measure:args];
+}
+
 - (TiPoint *)contentOffset
 {
   return [[[TiPoint alloc] initWithPoint:CGPointMake(0, 0)] autorelease];

@@ -43,6 +43,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import org.appcelerator.kroll.KrollDict;
+import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollPromise;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.Log;
@@ -764,5 +765,17 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 	public String getApiName()
 	{
 		return "Ti.UI.Window";
+	}
+
+	// measureActualDimensions(options?, callback?) -> Promise<{ width, height }>
+	@Kroll.method
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public KrollPromise<KrollDict> measureActualDimensions(
+		@Kroll.argument(optional = true) KrollDict options,
+		@Kroll.argument(optional = true) KrollFunction callback)
+	{
+		// Delegate to base-class measure() which measures our content view (created in createView),
+		// allowing pre-open measurement as the content view exists independently of Activity open.
+		return super.measure(options, callback);
 	}
 }

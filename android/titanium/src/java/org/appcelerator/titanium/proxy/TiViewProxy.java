@@ -1558,6 +1558,8 @@ public abstract class TiViewProxy extends KrollProxy
 
 					final int[] framesLeft = new int[] { maxFrames };
 					final long deadline = SystemClock.uptimeMillis() + Math.max(0, timeoutMs);
+					final int fMinWidthPx = minWidthPx;
+					final int fMinHeightPx = minHeightPx;
 					Runnable doMeasure = new Runnable() {
 						@Override
 						public void run()
@@ -1572,8 +1574,8 @@ public abstract class TiViewProxy extends KrollProxy
 								int measuredH = nv.getMeasuredHeight();
 
 								// If minimum constraints requested, retry until satisfied or limits reached
-								boolean widthOk = (minWidthPx <= 0) || (measuredW >= minWidthPx);
-								boolean heightOk = (minHeightPx <= 0) || (measuredH >= minHeightPx);
+								boolean widthOk = (fMinWidthPx <= 0) || (measuredW >= fMinWidthPx);
+								boolean heightOk = (fMinHeightPx <= 0) || (measuredH >= fMinHeightPx);
 								if (!(widthOk && heightOk)
 									&& (framesLeft[0] > 0)
 									&& (SystemClock.uptimeMillis() < deadline)) {
@@ -1633,5 +1635,16 @@ public abstract class TiViewProxy extends KrollProxy
 				}
 			});
 		});
+	}
+
+	/**
+	 * Alias for measure() to keep a unified API name across View and Window.
+	 */
+	@Kroll.method(name = "measureActualDimensions")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public KrollPromise<KrollDict> measureActualDimensions(@Kroll.argument(optional = true) KrollDict options,
+		@Kroll.argument(optional = true) KrollFunction callback)
+	{
+		return measure(options, callback);
 	}
 }

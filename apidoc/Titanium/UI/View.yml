@@ -841,6 +841,25 @@ events:
 
 methods:
   - name: measure
+  - name: measureActualDimensions
+    summary: Measures the actual computed size of the view (alias of measure).
+    description: |
+        Alias for `measure()` that returns `{ width, height }` in default units, also for unattached views.
+        Supports the same options as `measure()` including min/max and retry controls.
+    parameters:
+      - name: options
+        type: Dictionary
+        optional: true
+        summary: Same as `measure()` options.
+      - name: callback
+        type: Callback<Object>
+        optional: true
+        summary: Optional callback. Prefer the returned Promise.
+    returns:
+      summary: Promise resolving to `{ width, height }`.
+      type: Promise<Dimension>
+    since: "12.9.0"
+    platforms: [android, iphone, ipad, macos]
     summary: Measures the view and returns the computed size in default units (DIP/points), even if not attached.
     description: |
         Computes the view's natural width/height using layout measurement. Supports optional constraints.

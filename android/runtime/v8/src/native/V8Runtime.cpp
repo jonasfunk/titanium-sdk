@@ -6,6 +6,7 @@
  */
 #include <stdio.h>
 #include <cstring>
+#include <string>
 
 #include <v8-platform.h>
 #include <libplatform/libplatform.h>
@@ -200,6 +201,40 @@ void promiseRejectCallback(PromiseRejectMessage message)
 				exceptionString = STRING_NEW(isolate, "Unhandled promise rejection.");
 			} else {
 				exceptionString = maybeString.ToLocalChecked();
+			}
+		}
+
+		// If we still don't have a proper stack (e.g. rejection with a plain string),
+		// append a best-effort V8-generated stack trace for better diagnostics.
+		if (!exceptionString.IsEmpty()) {
+			// Heuristic: If the string doesn't already contain a newline typical of stack frames,
+			// we append a generated stack to aid debugging.
+			String::Utf8Value utf8Reason(isolate, exceptionString);
+			bool looksLikeStack = strstr(*utf8Reason, "\n    at ") != nullptr || strstr(*utf8Reason, "\n    at") != nullptr;
+			if (!looksLikeStack) {
+				Local<StackTrace> st = StackTrace::CurrentStackTrace(isolate, 16, StackTrace::kOverview);
+				if (!st.IsEmpty() && st->GetFrameCount() > 0) {
+					// Format stack frames
+					std::string formatted = std::string(*utf8Reason);
+					formatted.append("\n---- Generated stack ----");
+					for (int i = 0; i < st->GetFrameCount(); i++) {
+						Local<StackFrame> frame = st->GetFrame(isolate, i);
+						String::Utf8Value fn(isolate, frame->GetFunctionName());
+						String::Utf8Value sn(isolate, frame->GetScriptNameOrSourceURL());
+						int line = frame->GetLineNumber();
+						int col = frame->GetColumn();
+						formatted.append("\n    at ");
+						formatted.append((*fn && fn.length() > 0) ? *fn : "<anonymous>");
+						formatted.append(" (");
+						formatted.append((*sn && sn.length() > 0) ? *sn : "<unknown>");
+						formatted.append(":");
+						formatted.append(std::to_string(line));
+						formatted.append(":");
+						formatted.append(std::to_string(col));
+						formatted.append(")");
+					}
+					exceptionString = v8::String::NewFromUtf8(isolate, formatted.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
+				}
 			}
 		}
 

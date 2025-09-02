@@ -483,6 +483,40 @@
   }
 }
 
+- (void)scrollToBottom:(id)args
+{
+  if (view != nil) {
+    NSDictionary *properties = [args isKindOfClass:[NSDictionary class]] ? args : ([args isKindOfClass:[NSArray class]] && [args count] > 0 ? [args objectAtIndex:0] : nil);
+    UITableViewScrollPosition scrollPosition = [TiUtils intValue:@"position" properties:properties def:UITableViewScrollPositionNone];
+    BOOL animated = [TiUtils boolValue:@"animated" properties:properties def:YES];
+
+    TiThreadPerformOnMainThread(
+        ^{
+          if ([_sections count] == 0) {
+            DebugLog(@"[WARN] ListView: scrollToBottom called with no sections");
+            return;
+          }
+
+          // Find last section having at least one item; otherwise use last section with row 0
+          NSInteger sectionIndex = (NSInteger)[_sections count] - 1;
+          TiUIListSectionProxy *section = [_sections objectAtIndex:sectionIndex];
+          while (sectionIndex > 0 && section.itemCount == 0) {
+            sectionIndex--;
+            section = [_sections objectAtIndex:sectionIndex];
+          }
+
+          NSUInteger row = 0;
+          if (section.itemCount > 0) {
+            row = section.itemCount - 1;
+          }
+
+          NSIndexPath *indexPath = [NSIndexPath indexPathForRow:row inSection:sectionIndex];
+          [self.listView.tableView scrollToRowAtIndexPath:indexPath atScrollPosition:scrollPosition animated:animated];
+        },
+        [NSThread isMainThread]);
+  }
+}
+
 - (void)selectItem:(id)args
 {
   ENSURE_ARG_COUNT(args, 2);

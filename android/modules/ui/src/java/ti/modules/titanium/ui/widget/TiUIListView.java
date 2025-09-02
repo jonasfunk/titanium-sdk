@@ -48,8 +48,16 @@ public class TiUIListView extends TiUIView
 	{
 		super(proxy);
 
-		getLayoutParams().autoFillsHeight = true;
-		getLayoutParams().autoFillsWidth = true;
+		// Respect explicit SIZE requests if provided at creation time; otherwise default to fill.
+		final KrollDict initialProps = proxy.getProperties();
+		final Object initHeight = initialProps != null ? initialProps.get(TiC.PROPERTY_HEIGHT) : null;
+		final Object initWidth = initialProps != null ? initialProps.get(TiC.PROPERTY_WIDTH) : null;
+		if (!(TiC.LAYOUT_SIZE.equals(initHeight))) {
+			getLayoutParams().autoFillsHeight = true;
+		}
+		if (!(TiC.LAYOUT_SIZE.equals(initWidth))) {
+			getLayoutParams().autoFillsWidth = true;
+		}
 
 		this.listView = new TiListView((ListViewProxy) proxy);
 		setNativeView(listView);

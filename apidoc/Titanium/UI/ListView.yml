@@ -1305,6 +1305,18 @@ methods:
         type: ListViewAnimationProperties
         optional: true
 
+  - name: scrollToBottom
+    summary: Scrolls the list to the last item.
+    description: |
+        Scrolls to the bottom-most item of the list. Supports the same `animation` options
+        as `scrollToItem`, including `animated` and `position` to control where the last
+        item should be aligned after scrolling.
+    parameters:
+      - name: animation
+        summary: Animation properties.
+        type: ListViewAnimationProperties
+        optional: true
+
   - name: deselectItem
     summary: Deselects a specific item.
     parameters:

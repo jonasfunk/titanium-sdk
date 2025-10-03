@@ -369,6 +369,26 @@ public class TiAnimationBuilder
 			}
 		}
 
+		// Direct translationX / translationY support via Ti.UI.Animation
+		if (options != null) {
+			if (options.containsKey(TiC.PROPERTY_TRANSLATION_X)) {
+				Object value = options.get(TiC.PROPERTY_TRANSLATION_X);
+				TiDimension dim = TiConvert.toTiDimension(value, TiDimension.TYPE_WIDTH);
+				if (dim != null) {
+					float target = (float) dim.getPixels(view);
+					addAnimator(animators, ObjectAnimator.ofFloat(view, "translationX", target));
+				}
+			}
+			if (options.containsKey(TiC.PROPERTY_TRANSLATION_Y)) {
+				Object value = options.get(TiC.PROPERTY_TRANSLATION_Y);
+				TiDimension dim = TiConvert.toTiDimension(value, TiDimension.TYPE_HEIGHT);
+				if (dim != null) {
+					float target = (float) dim.getPixels(view);
+					addAnimator(animators, ObjectAnimator.ofFloat(view, "translationY", target));
+				}
+			}
+		}
+
 		if (tdm != null) {
 			AnimatorUpdateListener updateListener = null;
 			updateListener = new AnimatorUpdateListener();
@@ -1213,6 +1233,26 @@ public class TiAnimationBuilder
 		}
 		if (rotationX >= 0) {
 			add.accept(new SpringAnimation(view, DynamicAnimation.ROTATION_X), rotationX);
+		}
+
+		// Direct translationX / translationY (non-matrix) target support
+		if (options != null) {
+			if (options.containsKey(TiC.PROPERTY_TRANSLATION_X)) {
+				Object value = options.get(TiC.PROPERTY_TRANSLATION_X);
+				TiDimension dim = TiConvert.toTiDimension(value, TiDimension.TYPE_WIDTH);
+				if (dim != null) {
+					float target = (float) dim.getPixels(view);
+					add.accept(new SpringAnimation(view, DynamicAnimation.TRANSLATION_X), target);
+				}
+			}
+			if (options.containsKey(TiC.PROPERTY_TRANSLATION_Y)) {
+				Object value = options.get(TiC.PROPERTY_TRANSLATION_Y);
+				TiDimension dim = TiConvert.toTiDimension(value, TiDimension.TYPE_HEIGHT);
+				if (dim != null) {
+					float target = (float) dim.getPixels(view);
+					add.accept(new SpringAnimation(view, DynamicAnimation.TRANSLATION_Y), target);
+				}
+			}
 		}
 
 		// Matrix-based transforms (only if we can decompose to view properties)

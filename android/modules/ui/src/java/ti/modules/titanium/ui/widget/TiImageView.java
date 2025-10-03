@@ -28,6 +28,7 @@ import android.graphics.PorterDuff.Mode;
 import androidx.annotation.NonNull;
 import com.google.android.material.color.MaterialColors;
 import java.lang.ref.WeakReference;
+import org.appcelerator.kroll.common.Log;
 import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.util.TiExifOrientation;
 import org.appcelerator.titanium.util.TiUIHelper;
@@ -79,6 +80,18 @@ public class TiImageView extends ViewGroup
 	{
 		this(context);
 		this.proxy = new WeakReference<>(proxy);
+		try {
+			String creationUrl = null;
+			if (proxy != null && proxy.getCreationUrl() != null) {
+				creationUrl = proxy.getCreationUrl().getNormalizedUrl();
+			}
+			String threadName = Thread.currentThread().getName();
+			Log.d(TAG, "Native TiImageView created | creationUrl="
+				+ (creationUrl != null ? creationUrl : "<null>")
+				+ ", thread=" + threadName, Log.DEBUG_MODE);
+		} catch (Throwable t) {
+			// ignore
+		}
 	}
 
 	public void setEnableZoomControls(boolean value)

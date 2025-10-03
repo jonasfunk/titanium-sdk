@@ -519,12 +519,16 @@ public class TiUIScrollView extends TiUIView
 					@Override
 					public void run()
 					{
-						isScrolling = false;
-						KrollDict scrollEndData = new KrollDict();
-						scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
-						scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
-						scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
-						getProxy().fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+						// Guard against teardown: proxy may be null after release()
+						TiViewProxy proxy = getProxy();
+						if (proxy != null) {
+							isScrolling = false;
+							KrollDict scrollEndData = new KrollDict();
+							scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
+							scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
+							scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
+							proxy.fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+						}
 					}
 				};
 				postDelayed(scrollEndRunnable, 200);
@@ -678,12 +682,16 @@ public class TiUIScrollView extends TiUIView
 					@Override
 					public void run()
 					{
-						isScrolling = false;
-						KrollDict scrollEndData = new KrollDict();
-						scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
-						scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
-						scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
-						getProxy().fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+						// Guard against teardown: proxy may be null after release()
+						TiViewProxy proxy = getProxy();
+						if (proxy != null) {
+							isScrolling = false;
+							KrollDict scrollEndData = new KrollDict();
+							scrollEndData.put(TiC.EVENT_PROPERTY_X, offsetX.getAsDefault(scrollView));
+							scrollEndData.put(TiC.EVENT_PROPERTY_Y, offsetY.getAsDefault(scrollView));
+							scrollEndData.put(TiC.PROPERTY_CONTENT_SIZE, contentSize());
+							proxy.fireEvent(TiC.EVENT_SCROLLEND, scrollEndData);
+						}
 					}
 				};
 				postDelayed(scrollEndRunnable, 200);
@@ -1261,8 +1269,23 @@ public class TiUIScrollView extends TiUIView
 
 	private KrollDict contentSize()
 	{
-		TiDimension dimensionWidth = new TiDimension(getLayout().getMeasuredWidth(), TiDimension.TYPE_WIDTH);
-		TiDimension dimensionHeight = new TiDimension(getLayout().getMeasuredHeight(), TiDimension.TYPE_HEIGHT);
+		// Guard against null layout during teardown (eg. after release()).
+		TiScrollViewLayout layout = getLayout();
+		int measuredWidth = 0;
+		int measuredHeight = 0;
+		if (layout != null) {
+			measuredWidth = layout.getMeasuredWidth();
+			measuredHeight = layout.getMeasuredHeight();
+		} else {
+			// Fallback to native view if available; otherwise default to 0.
+			View nativeView = getNativeView();
+			if (nativeView != null) {
+				measuredWidth = nativeView.getMeasuredWidth();
+				measuredHeight = nativeView.getMeasuredHeight();
+			}
+		}
+		TiDimension dimensionWidth = new TiDimension(measuredWidth, TiDimension.TYPE_WIDTH);
+		TiDimension dimensionHeight = new TiDimension(measuredHeight, TiDimension.TYPE_HEIGHT);
 		double contentWidth = dimensionWidth.getAsDefault(getNativeView());
 		double contentHeight = dimensionHeight.getAsDefault(getNativeView());
 

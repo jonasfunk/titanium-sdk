@@ -181,28 +181,68 @@ void promiseRejectCallback(PromiseRejectMessage message)
 		Isolate* isolate = V8Runtime::v8_isolate;
 		HandleScope scope(isolate);
 
-		Local<Value> exception = message.GetValue();
-		Local<String> exceptionString;
+        Local<Value> exception = message.GetValue();
+        Local<String> exceptionString;
 
-		if (exception->IsObject()) {
-			Local<Context> context = isolate->GetCurrentContext();
-			Local<Value> stackValue;
-			MaybeLocal<Value> maybeStack = exception.As<Object>()->Get(context, STRING_NEW(isolate, "stack"));
-			if (maybeStack.ToLocal(&stackValue) && stackValue->IsString()) {
-				exceptionString = stackValue.As<String>();
-			}
-		}
+        // Attempt to build a rich error description
+        Local<Context> context = isolate->GetCurrentContext();
+        std::string header; // e.g. "ErrorName: message"
 
-		if (exceptionString.IsEmpty()) {
-			Local<Context> context = isolate->GetCurrentContext();
-			TryCatch tryCatch(isolate);
-			MaybeLocal<String> maybeString = exception->ToString(context);
-			if (maybeString.IsEmpty()) {
-				exceptionString = STRING_NEW(isolate, "Unhandled promise rejection.");
-			} else {
-				exceptionString = maybeString.ToLocalChecked();
-			}
-		}
+        if (exception->IsObject()) {
+            Local<Object> obj = exception.As<Object>();
+
+            // Prefer a real stack if present
+            Local<Value> stackValue;
+            MaybeLocal<Value> maybeStack = obj->Get(context, STRING_NEW(isolate, "stack"));
+            if (maybeStack.ToLocal(&stackValue) && stackValue->IsString()) {
+                // Try to prepend name and message if available
+                Local<Value> nameValue;
+                Local<Value> messageValue;
+                bool hasName = obj->Get(context, STRING_NEW(isolate, "name")).ToLocal(&nameValue) && nameValue->IsString();
+                bool hasMessage = obj->Get(context, STRING_NEW(isolate, "message")).ToLocal(&messageValue) && messageValue->IsString();
+                if (hasName || hasMessage) {
+                    std::string nameStr = hasName ? *String::Utf8Value(isolate, nameValue) : "";
+                    std::string msgStr = hasMessage ? *String::Utf8Value(isolate, messageValue) : "";
+                    if (!nameStr.empty()) {
+                        header.append(nameStr);
+                        if (!msgStr.empty()) {
+                            header.append(": ");
+                        }
+                    }
+                    header.append(msgStr);
+                }
+
+                if (!header.empty()) {
+                    // Combine header and stack
+                    std::string combined = header;
+                    combined.append("\n");
+                    combined.append(*String::Utf8Value(isolate, stackValue));
+                    exceptionString = v8::String::NewFromUtf8(isolate, combined.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
+                } else {
+                    exceptionString = stackValue.As<String>();
+                }
+            }
+
+            // If no stack or header found, try JSON.stringify for objects
+            if (exceptionString.IsEmpty()) {
+                TryCatch stringifyTry(isolate);
+                MaybeLocal<String> maybeJson = v8::JSON::Stringify(context, obj);
+                if (!maybeJson.IsEmpty()) {
+                    exceptionString = maybeJson.ToLocalChecked();
+                }
+            }
+        }
+
+        // Fallback to toString() if we still don't have anything usable
+        if (exceptionString.IsEmpty()) {
+            TryCatch tryCatch(isolate);
+            MaybeLocal<String> maybeString = exception->ToString(context);
+            if (maybeString.IsEmpty()) {
+                exceptionString = STRING_NEW(isolate, "Unhandled promise rejection.");
+            } else {
+                exceptionString = maybeString.ToLocalChecked();
+            }
+        }
 
 		// If we still don't have a proper stack (e.g. rejection with a plain string),
 		// append a best-effort V8-generated stack trace for better diagnostics.
@@ -238,7 +278,7 @@ void promiseRejectCallback(PromiseRejectMessage message)
 			}
 		}
 
-		JNIEnv* env = JNIScope::getEnv();
+        JNIEnv* env = JNIScope::getEnv();
 		if (env) {
 			jstring error = env->NewStringUTF(*String::Utf8Value(isolate, exceptionString));
 			env->CallStaticVoidMethod(JNIUtil::v8RuntimeClass, JNIUtil::v8RuntimeFireUnhandledRejectionMethod, error);

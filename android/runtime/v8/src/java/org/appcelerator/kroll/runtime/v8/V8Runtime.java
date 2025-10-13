@@ -232,6 +232,35 @@ public final class V8Runtime extends KrollRuntime implements Handler.Callback
 		if (app != null) {
 			KrollDict event = new KrollDict();
 			event.put("reason", reason);
+			// Heuristic enrichment: try to split name/message from stack header if present
+			if (reason != null) {
+				String name = null;
+				String message = null;
+				String stack = null;
+
+				int newline = reason.indexOf('\n');
+				String firstLine = newline >= 0 ? reason.substring(0, newline) : reason;
+				stack = newline >= 0 ? reason.substring(newline + 1) : null;
+
+				int colon = firstLine.indexOf(':');
+				if (colon > 0) {
+					name = firstLine.substring(0, colon).trim();
+					message = firstLine.substring(colon + 1).trim();
+				} else {
+					// No explicit name/message, treat full as message
+					message = firstLine;
+				}
+
+				if (name != null && !name.isEmpty()) {
+					event.put("name", name);
+				}
+				if (message != null && !message.isEmpty()) {
+					event.put("message", message);
+				}
+				if (stack != null && !stack.isEmpty()) {
+					event.put("stack", stack);
+				}
+			}
 			app.fireAppEvent("unhandledrejection", event);
 		}
 	}

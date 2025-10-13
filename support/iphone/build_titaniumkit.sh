@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd)
 cd $SCRIPT_PATH
@@ -64,8 +65,10 @@ UNIVERSAL_LIBRARY_DIR="$(pwd)/build"
 
 FRAMEWORK="${UNIVERSAL_LIBRARY_DIR}/${FRAMEWORK_NAME}.xcframework"
 
-rm -rf "${UNIVERSAL_LIBRARY_DIR}"
-mkdir "${UNIVERSAL_LIBRARY_DIR}"
+mkdir -p "${UNIVERSAL_LIBRARY_DIR}"
+
+# Clean previous archives/output if they exist
+rm -rf "$MAC_ARCHIVE_PATH" "$DEVICE_ARCHIVE_PATH" "$SIMULATOR_ARCHIVE_PATH" "$FRAMEWORK"
 
 #----- Make macCatalyst archive
 # xcodebuild archive \
@@ -81,20 +84,26 @@ xcodebuild archive \
 -scheme $FRAMEWORK_NAME \
 -archivePath $SIMULATOR_ARCHIVE_PATH \
 -sdk iphonesimulator \
-SKIP_INSTALL=NO BUILD_LIBRARIES_FOR_DISTRIBUTION=YES
+SKIP_INSTALL=NO \
+BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+SUPPORTS_MACCATALYST=NO
 
 #----- Make iOS device archive
 xcodebuild archive \
 -scheme $FRAMEWORK_NAME \
 -archivePath $DEVICE_ARCHIVE_PATH \
 -sdk iphoneos \
-SKIP_INSTALL=NO BUILD_LIBRARIES_FOR_DISTRIBUTION=YES
+SKIP_INSTALL=NO \
+BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+SUPPORTS_MACCATALYST=NO
 
 # restore TopTiModule.m
 rm TitaniumKit/Sources/API/TopTiModule.m
 mv TitaniumKit/Sources/API/TopTiModule.bak TitaniumKit/Sources/API/TopTiModule.m
 
 #----- Make XCFramework
+# Ensure we remove any pre-existing output to avoid duplicate variant errors
+rm -rf "$FRAMEWORK"
 xcodebuild -create-xcframework \
 -framework $SIMULATOR_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \
 -framework $DEVICE_ARCHIVE_PATH/Products/Library/Frameworks/$FRAMEWORK_NAME.framework \

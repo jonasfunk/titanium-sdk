@@ -80,10 +80,18 @@ public class ScrollViewProxy extends TiViewProxy
 	public void scrollTo(int x, int y, @Kroll.argument(optional = true) HashMap args)
 	{
 		boolean animated = false;
+		int duration = -1;
+		Integer curve = null;
 		if (args != null) {
 			animated = TiConvert.toBoolean(args.get("animated"), false);
+			if (args.containsKey("duration")) {
+				duration = TiConvert.toInt(args.get("duration"), -1);
+			}
+			if (args.containsKey(TiC.PROPERTY_CURVE)) {
+				curve = TiConvert.toInt(args, TiC.PROPERTY_CURVE);
+			}
 		}
-		handleScrollTo(x, y, animated);
+		handleScrollTo(x, y, animated, duration, curve);
 	}
 
 	@Kroll.getProperty
@@ -185,7 +193,18 @@ public class ScrollViewProxy extends TiViewProxy
 
 	public void handleScrollTo(int x, int y, boolean smoothScroll)
 	{
+		// Backwards compatibility: no duration specified
 		getScrollView().scrollTo(x, y, smoothScroll);
+	}
+
+	public void handleScrollTo(int x, int y, boolean smoothScroll, int duration)
+	{
+		getScrollView().scrollTo(x, y, smoothScroll, duration);
+	}
+
+	public void handleScrollTo(int x, int y, boolean smoothScroll, int duration, Integer curve)
+	{
+		getScrollView().scrollTo(x, y, smoothScroll, duration, curve);
 	}
 
 	public void handleScrollToBottom(boolean animated)

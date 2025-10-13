@@ -19,6 +19,12 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.animation.ValueAnimator;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.OvershootInterpolator;
 import java.util.HashMap;
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollProxy;
@@ -43,6 +49,7 @@ public class TiUIScrollView extends TiUIView
 	private static final String TAG = "TiUIScrollView";
 
 	private View scrollView;
+	private ValueAnimator scrollAnimator;
 	private TiDimension offsetX = new TiDimension(0, TiDimension.TYPE_LEFT);
 	private TiDimension offsetY = new TiDimension(0, TiDimension.TYPE_TOP);
 	private boolean setInitialOffset = false;
@@ -763,6 +770,11 @@ public class TiUIScrollView extends TiUIView
 	@Override
 	public void release()
 	{
+		// Cancel ongoing scroll animation if any
+		if (scrollAnimator != null) {
+			scrollAnimator.cancel();
+			scrollAnimator = null;
+		}
 		// If a refresh control is currently assigned, then detach it.
 		View nativeView = getNativeView();
 		if (nativeView instanceof TiSwipeRefreshLayout) {
@@ -1223,6 +1235,134 @@ public class TiUIScrollView extends TiUIView
 			view.scrollTo(x, y);
 		}
 		view.computeScroll();
+	}
+
+	public void scrollTo(int x, int y, boolean smoothScroll, int duration)
+	{
+		// If no duration provided or negative, fallback to existing behavior
+		if (duration <= 0) {
+			scrollTo(x, y, smoothScroll);
+			return;
+		}
+
+		final View view = this.scrollView;
+		if (view == null) {
+			return;
+		}
+
+		// Convert target coordinates to pixels relative to the view
+		final int targetX = TiConvert.toTiDimension(x, -1).getAsPixels(view);
+		final int targetY = TiConvert.toTiDimension(y, -1).getAsPixels(view);
+
+		// Determine current scroll positions
+		final int startX = (view instanceof HorizontalScrollView) ? ((HorizontalScrollView) view).getScrollX()
+			: (view instanceof TiVerticalScrollView ? ((TiVerticalScrollView) view).getScrollX() : view.getScrollX());
+		final int startY = (view instanceof TiVerticalScrollView) ? ((TiVerticalScrollView) view).getScrollY()
+			: (view instanceof HorizontalScrollView ? ((HorizontalScrollView) view).getScrollY() : view.getScrollY());
+
+		// Cancel any ongoing animation
+		if (scrollAnimator != null) {
+			scrollAnimator.cancel();
+			scrollAnimator = null;
+		}
+
+		// Edge case: if start == target, nothing to animate
+		if (startX == targetX && startY == targetY) {
+			return;
+		}
+
+		// Create animator from 0..1 and interpolate between start and target
+		scrollAnimator = ValueAnimator.ofFloat(0f, 1f);
+		scrollAnimator.setDuration(duration);
+		scrollAnimator.setInterpolator(new DecelerateInterpolator());
+		scrollAnimator.addUpdateListener(animation -> {
+			float fraction = (Float) animation.getAnimatedValue();
+			int currX = startX + Math.round((targetX - startX) * fraction);
+			int currY = startY + Math.round((targetY - startY) * fraction);
+
+			if (view instanceof TiHorizontalScrollView) {
+				((TiHorizontalScrollView) view).scrollTo(currX, currY);
+			} else if (view instanceof TiVerticalScrollView) {
+				((TiVerticalScrollView) view).scrollTo(currX, currY);
+			} else {
+				view.scrollTo(currX, currY);
+			}
+			view.computeScroll();
+		});
+		scrollAnimator.start();
+	}
+
+	public void scrollTo(int x, int y, boolean smoothScroll, int duration, Integer curve)
+	{
+		if (duration <= 0 && curve == null) {
+			scrollTo(x, y, smoothScroll);
+			return;
+		}
+
+		final View view = this.scrollView;
+		if (view == null) {
+			return;
+		}
+
+		final int targetX = TiConvert.toTiDimension(x, -1).getAsPixels(view);
+		final int targetY = TiConvert.toTiDimension(y, -1).getAsPixels(view);
+
+		final int startX = (view instanceof HorizontalScrollView) ? ((HorizontalScrollView) view).getScrollX()
+			: (view instanceof TiVerticalScrollView ? ((TiVerticalScrollView) view).getScrollX() : view.getScrollX());
+		final int startY = (view instanceof TiVerticalScrollView) ? ((TiVerticalScrollView) view).getScrollY()
+			: (view instanceof HorizontalScrollView ? ((HorizontalScrollView) view).getScrollY() : view.getScrollY());
+
+		if (scrollAnimator != null) {
+			scrollAnimator.cancel();
+			scrollAnimator = null;
+		}
+
+		if (startX == targetX && startY == targetY) {
+			return;
+		}
+
+		scrollAnimator = ValueAnimator.ofFloat(0f, 1f);
+		if (duration > 0) {
+			scrollAnimator.setDuration(duration);
+		}
+		// Map common Titanium curves to Android interpolators
+		if (curve != null) {
+			switch (curve.intValue()) {
+				case 0: // linear
+					scrollAnimator.setInterpolator(new LinearInterpolator());
+					break;
+				case 1: // ease-in
+					scrollAnimator.setInterpolator(new AccelerateInterpolator());
+					break;
+				case 2: // ease-out
+					scrollAnimator.setInterpolator(new DecelerateInterpolator());
+					break;
+				case 3: // ease-in-out
+					scrollAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+					break;
+				case 4: // ease-out-back/overshoot
+					scrollAnimator.setInterpolator(new OvershootInterpolator());
+					break;
+				default:
+					scrollAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+			}
+		}
+
+		scrollAnimator.addUpdateListener(animation -> {
+			float fraction = (Float) animation.getAnimatedValue();
+			int currX = startX + Math.round((targetX - startX) * fraction);
+			int currY = startY + Math.round((targetY - startY) * fraction);
+
+			if (view instanceof TiHorizontalScrollView) {
+				((TiHorizontalScrollView) view).scrollTo(currX, currY);
+			} else if (view instanceof TiVerticalScrollView) {
+				((TiVerticalScrollView) view).scrollTo(currX, currY);
+			} else {
+				view.scrollTo(currX, currY);
+			}
+			view.computeScroll();
+		});
+		scrollAnimator.start();
 	}
 
 	public void scrollToBottom(boolean animated)

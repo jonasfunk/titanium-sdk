@@ -1,0 +1,22 @@
+{
+  "name": "titanium-ota-packager",
+  "version": "1.0.0",
+  "description": "Build tools for Titanium OTA update system",
+  "main": "packager.js",
+  "scripts": {
+    "package": "node packager.js",
+    "keygen": "node keygen.js"
+  },
+  "dependencies": {
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "titanium",
+    "ota",
+    "updates",
+    "packager"
+  ],
+  "author": "Jonas Funk Johannessen",
+  "license": "Apache-2.0"
+}

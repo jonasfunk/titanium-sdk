@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ti:app xmlns:ti="http://ti.titaniumsdk.com">
+	<!-- App Information -->
+	<name>MyApp</name>
+	<id>com.example.myapp</id>
+	<version>1.0.0</version>
+	<publisher>Your Company</publisher>
+	<url>https://example.com</url>
+	<description>My awesome Titanium app with OTA updates</description>
+	<copyright>2025 Your Company</copyright>
+	<icon>appicon.png</icon>
+	
+	<!-- Deployment Targets -->
+	<deployment-targets>
+		<target device="android">true</target>
+		<target device="ipad">false</target>
+		<target device="iphone">true</target>
+	</deployment-targets>
+	
+	<!-- SDK Version -->
+	<sdk-version>12.0.0</sdk-version>
+	
+	<!-- ========================================== -->
+	<!-- OTA Configuration                          -->
+	<!-- ========================================== -->
+	
+	<!-- Enable OTA Updates -->
+	<property name="ti.ota.enabled" type="bool">true</property>
+	
+	<!-- Manifest URL (required) -->
+	<property name="ti.ota.manifestUrl" type="string">https://cdn.example.com/prod/manifest.json</property>
+	
+	<!-- Release Channel (production, staging, beta, development) -->
+	<property name="ti.ota.channel" type="string">production</property>
+	
+	<!-- Public Keys for Signature Verification -->
+	<!-- Generate keys with: node build/ota/keygen.js --save -->
+	<property name="ti.ota.publicKey.main" type="string">1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef</property>
+	<property name="ti.ota.publicKey.backup" type="string">fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321</property>
+	
+	<!-- Debug Mode (disable for production!) -->
+	<property name="ti.ota.debug" type="bool">false</property>
+	
+	<!-- ========================================== -->
+	<!-- Additional OTA Configuration (Optional)    -->
+	<!-- ========================================== -->
+	
+	<!-- Alternative: Use different config per deployment type -->
+	<!--
+	For development builds:
+	<property name="ti.ota.manifestUrl" type="string">http://localhost:3000/manifest.json</property>
+	<property name="ti.ota.channel" type="string">development</property>
+	<property name="ti.ota.publicKey.dev" type="string">dev-key-here</property>
+	<property name="ti.ota.debug" type="bool">true</property>
+	-->
+	
+	<!-- iOS Configuration -->
+	<ios>
+		<plist>
+			<dict>
+				<key>UISupportedInterfaceOrientations</key>
+				<array>
+					<string>UIInterfaceOrientationPortrait</string>
+				</array>
+				<key>UIRequiresPersistentWiFi</key>
+				<false/>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+				<key>UIStatusBarHidden</key>
+				<false/>
+				<key>UIStatusBarStyle</key>
+				<string>UIStatusBarStyleDefault</string>
+			</dict>
+		</plist>
+	</ios>
+	
+	<!-- Android Configuration -->
+	<android xmlns:android="http://schemas.android.com/apk/res/android">
+		<manifest>
+			<!-- Required permissions for OTA -->
+			<uses-permission android:name="android.permission.INTERNET"/>
+			<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+			
+			<!-- Optional: For download progress notifications -->
+			<!-- <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/> -->
+		</manifest>
+	</android>
+	
+	<!-- Modules -->
+	<modules>
+		<!-- Add any required native modules here -->
+		<!-- OTA is pure JavaScript and doesn't require a native module -->
+	</modules>
+	
+	<!-- Plugins -->
+	<plugins>
+		<!-- Add any required plugins here -->
+	</plugins>
+	
+</ti:app>
+

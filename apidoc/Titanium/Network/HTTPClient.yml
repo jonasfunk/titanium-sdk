@@ -181,6 +181,19 @@ methods:
         type: String
     platforms: [android, iphone, ipad, macos]
 
+  - name: getAllRequestHeaders
+    summary: All of the request headers.
+    description: |
+        Returns all request headers that have been set using [setRequestHeader](Titanium.Network.HTTPClient.setRequestHeader).
+        
+        Contains a single string with all headers in the format "Header-Name:Header-Value" separated by newlines,
+        or an empty string if no headers have been set.
+
+        See also: [setRequestHeader](Titanium.Network.HTTPClient.setRequestHeader).
+    returns:
+        type: String
+    since: {iphone: "13.0.0", ipad: "13.0.0", macos: "13.0.0", android: "13.0.0"}
+
   - name: getAllResponseHeaders
     summary: All of the response headers.
     description: |

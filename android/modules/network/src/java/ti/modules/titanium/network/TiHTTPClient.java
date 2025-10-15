@@ -751,6 +751,23 @@ public class TiHTTPClient
 		return result;
 	}
 
+	public String getAllRequestHeaders()
+	{
+		String result = "";
+		if (requestHeaders != null && !requestHeaders.isEmpty()) {
+			StringBuilder sb = new StringBuilder(256);
+			Set<Map.Entry<String, String>> entrySet = requestHeaders.entrySet();
+
+			for (Map.Entry<String, String> entry : entrySet) {
+				String headerName = entry.getKey();
+				String headerValue = entry.getValue();
+				sb.append(headerName).append(":").append(headerValue).append("\n");
+			}
+			result = sb.toString();
+		}
+		return result;
+	}
+
 	public KrollDict getResponseHeaders()
 	{
 		final KrollDict result = new KrollDict();

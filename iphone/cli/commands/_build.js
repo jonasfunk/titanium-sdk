@@ -7113,6 +7113,62 @@ iOSBuilder.prototype.invokeXcodeBuild = async function invokeXcodeBuild(next) {
 		let buffer = '',
 			stopOutputting = false;
 
+		// Compress noisy destination listing from xcodebuild into a single trace line
+		let destWarningActive = false;
+		let destCount = 0;
+
+		function flushDestinationWarning() {
+			if (destWarningActive) {
+				this.logger.trace('Multiple matching destinations (' + destCount + '), using first.');
+				destWarningActive = false;
+				destCount = 0;
+			}
+		}
+
+		function summarizeFailure() {
+			// 1) Print failed build commands summary first
+			const failedHeaderIndex = err.findIndex(l => l.indexOf('The following build commands failed:') !== -1);
+			if (failedHeaderIndex !== -1) {
+				this.logger.error('The following build commands failed:');
+				for (let i = failedHeaderIndex + 1; i < err.length; i++) {
+					const line = err[i];
+					if (!line.trim()) {
+						break;
+					}
+					this.logger.error('\t' + line.trim());
+				}
+				this.logger.log();
+			}
+
+			// 2) Extract top compiler error lines
+			const combined = out.concat(err);
+			const errorLines = [];
+			const fileErrorRe = /^(.*?):(\d+):(\d+)?\s*error:\s+.+/i;
+			for (const line of combined) {
+				if (fileErrorRe.test(line) || /\berror:\b/i.test(line)) {
+					errorLines.push(line);
+				}
+				if (errorLines.length >= 10) {
+					break;
+				}
+			}
+			if (errorLines.length) {
+				this.logger.error('Error summary:');
+				errorLines.forEach(l => this.logger.error(l));
+				this.logger.log();
+			}
+
+			// 3) Add contextual hints
+			const errAll = err.join('\n');
+			if (/PrecompileModule/.test(errAll) && /TitaniumKit/i.test(errAll)) {
+				this.logger.info('Hint: Clear Xcode DerivedData and rebuild TitaniumKit if using local SDK.');
+				this.logger.info('Run: rm -rf ~/Library/Developer/Xcode/DerivedData/*');
+			}
+			if (/Supported platforms.*empty/i.test(errAll)) {
+				this.logger.info('Hint: Check scheme Supported Platforms and ensure correct Xcode selected (xcode-select).');
+			}
+		}
+
 		function printLine(line) {
 			if (line.length) {
 				out.push(line);
@@ -7152,10 +7208,25 @@ iOSBuilder.prototype.invokeXcodeBuild = async function invokeXcodeBuild(next) {
 		}.bind(this));
 
 		p.stderr.on('data', function (data) {
-			data.toString().split('\n').forEach(function (line) {
-				if (line.length) {
-					err.push(line);
+			data.toString().split('\n').forEach(function (raw) {
+				const line = raw;
+				if (!line.length) {
+					return;
 				}
+				// Compress destination spam
+				if (line.indexOf('Using the first of multiple matching destinations:') !== -1) {
+					destWarningActive = true;
+					return;
+				}
+				if (destWarningActive) {
+					if (/^\{\s*platform:/.test(line.trim())) {
+						destCount++;
+						return;
+					}
+					// End of destination block
+					flushDestinationWarning.call(this);
+				}
+				err.push(line);
 			}, this);
 		}.bind(this));
 
@@ -7165,6 +7236,9 @@ iOSBuilder.prototype.invokeXcodeBuild = async function invokeXcodeBuild(next) {
 			}
 
 			if (code) {
+				// Ensure any pending destination warning is flushed
+				flushDestinationWarning.call(this);
+
 				// first see if we errored due to a dependency issue
 				if (err.join('\n').indexOf('Check dependencies') !== -1) {
 					let len = out.length;
@@ -7197,9 +7271,11 @@ iOSBuilder.prototype.invokeXcodeBuild = async function invokeXcodeBuild(next) {
 					}
 				}
 
-				// just print the entire error buffer
+				// Summarize failure with clearer hints and errors
+				summarizeFailure.call(this);
+				// Print full stderr as trace for deep debugging
 				err.forEach(function (line) {
-					this.logger.error(line);
+					this.logger.trace(line);
 				}, this);
 				this.logger.log();
 				process.exit(1);

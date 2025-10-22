@@ -79,14 +79,16 @@ rm -rf "$MAC_ARCHIVE_PATH" "$DEVICE_ARCHIVE_PATH" "$SIMULATOR_ARCHIVE_PATH" "$FR
 # BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
 # SUPPORTS_MACCATALYST=YES \
 
-#----- Make iOS Simulator archive
+#----- Make iOS Simulator archive (arm64 + x86_64 when muligt)
 xcodebuild archive \
 -scheme $FRAMEWORK_NAME \
 -archivePath $SIMULATOR_ARCHIVE_PATH \
 -sdk iphonesimulator \
 SKIP_INSTALL=NO \
 BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
-SUPPORTS_MACCATALYST=NO
+SUPPORTS_MACCATALYST=NO \
+VALID_ARCHS="arm64 x86_64" \
+ARCHS="arm64 x86_64" || true
 
 #----- Make iOS device archive
 xcodebuild archive \

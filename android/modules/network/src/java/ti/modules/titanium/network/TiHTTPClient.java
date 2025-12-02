@@ -973,6 +973,10 @@ public class TiHTTPClient
 			hasAuthentication = true;
 		}
 
+		// Clear request headers to match iOS behavior and XMLHttpRequest specification
+		// This ensures that calling open() resets the request state, including headers
+		requestHeaders.clear();
+
 		setReadyState(READY_STATE_OPENED);
 		setRequestHeader("User-Agent", TITANIUM_USER_AGENT);
 	}

@@ -465,7 +465,20 @@ extern NSString *const TI_APPLICATION_GUID;
     return;
   }
   NSString *key = [TiUtils stringValue:[args objectAtIndex:0]];
-  NSString *value = [TiUtils stringValue:[args objectAtIndex:1]];
+  id valueArg = [args objectAtIndex:1];
+
+  // Check if value is null or NSNull - if so, remove the header (matches Android behavior)
+  if (valueArg == nil || valueArg == [NSNull null]) {
+    // Remove header from requestHeaders dictionary
+    if (requestHeaders != nil) {
+      [requestHeaders removeObjectForKey:key];
+    }
+    // Note: APSHTTPRequest doesn't have a remove method, so we can't remove it from the actual request
+    // The header will be ignored if it's not in requestHeaders when send() is called
+    return;
+  }
+
+  NSString *value = [TiUtils stringValue:valueArg];
 
   if ([key isEqualToString:@"User-Agent"] && ![[[TiApp app] userAgent] isEqualToString:[[TiApp app] systemUserAgent]]) {
     NSLog(@"[WARN] You already specified a custom 'User-Agent' using Ti.userAgent. The user-agents will be concatenated.");

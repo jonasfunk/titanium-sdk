@@ -2720,6 +2720,21 @@ iOSBuilder.prototype.loginfo = async function loginfo() {
 		this.logger.debug(__('Simulator version: %s', cyan(this.simHandle.version)));
 	} else if (this.target === 'device') {
 		this.logger.info(__('Building for iOS device: %s', cyan(this.deviceId)));
+
+		// Check if building for iTunes sync when no device is connected
+		if (this.deviceId === 'itunes' && !this.buildOnly && this.iosInfo && Array.isArray(this.iosInfo.devices)) {
+			// Count actual devices (excluding 'itunes' and 'all' entries)
+			const actualDevices = this.iosInfo.devices.filter(device =>
+				device.udid !== 'itunes' && device.udid !== 'all'
+			);
+
+			if (actualDevices.length === 0) {
+				this.logger.error(__('No iOS device is connected.'));
+				this.logger.error(__('Please connect your iPhone/iPad via USB and ensure it is trusted.'));
+				this.logger.error(__('Build aborted to prevent installation to iTunes.'));
+				throw new Error('No iOS device connected');
+			}
+		}
 	} else if (this.target === 'macos') {
 		this.logger.info(__('Building for maccatalyst'));
 	}
@@ -4616,6 +4631,9 @@ iOSBuilder.prototype.writeXcodeConfigFiles = function writeXcodeConfigFiles() {
 			'OTHER_LDFLAGS[sdk=iphonesimulator9.*]=$(inherited) -weak_framework Contacts -weak_framework ContactsUI -weak_framework WatchConnectivity -weak_framework CoreSpotlight',
 			'GCC_DEFINITIONS=' + Array.from(this.gccDefs.entries()).map(function ([ key, value ]) { return key + '=' + value; }).join(' '),
 			'TI_SYMBOL_MACROS=' + this.tiSymbolMacros,
+			// Ensure device Release builds generate symbol files
+			'DEBUG_INFORMATION_FORMAT[sdk=iphoneos*]=dwarf-with-dsym',
+			'GCC_GENERATE_DEBUGGING_SYMBOLS=YES',
 			'#include "module"'
 		].join('\n') + '\n';
 
@@ -4647,15 +4665,52 @@ iOSBuilder.prototype.writeXcodeConfigFiles = function writeXcodeConfigFiles() {
 			path.join(this.projectDir, 'modules', 'iphone', moduleName + '.xcconfig')
 		].forEach(function (file) {
 			if (fs.existsSync(file)) {
-				const xc = new appc.xcconfig(file);
-				Object.keys(xc).forEach(function (key) {
-					var name = (prefix + '_' + key).replace(/[^\w]/g, '_');
-					Array.isArray(variables[key]) || (variables[key] = []);
-					variables[key].push(name);
-					contents.push((name + '=' + xc[key]).replace(new RegExp('\\$\\(' + key + '\\)', 'g'), '$(' + name + ')')); // eslint-disable-line security/detect-non-literal-regexp
-				});
+				try {
+					// Validate raw file content first to catch issues before parsing
+					const rawContent = fs.readFileSync(file, 'utf8');
+					const lines = rawContent.split('\n');
+					lines.forEach(function (line, index) {
+						// Skip comments and empty lines
+						const trimmedLine = line.trim();
+						if (trimmedLine && !trimmedLine.startsWith('//') && !trimmedLine.startsWith('#')) {
+							// Check for XML/HTML characters in the line
+							if (trimmedLine.indexOf('<') !== -1 || trimmedLine.indexOf('>') !== -1) {
+								this.logger.error(__('Invalid characters found in module.xcconfig for module %s', m.manifest.name));
+								this.logger.error(__('File: %s', file));
+								this.logger.error(__('Line %d: %s', index + 1, trimmedLine.substring(0, 200)));
+								throw new Error('Invalid xcconfig file contains XML/HTML characters (< or >) in module: ' + m.manifest.name + ', file: ' + file + ', line: ' + (index + 1));
+							}
+						}
+					}.bind(this));
+
+					const xc = new appc.xcconfig(file);
+					Object.keys(xc).forEach(function (key) {
+						var name = (prefix + '_' + key).replace(/[^\w]/g, '_');
+						var value = xc[key];
+
+						// Validate that the value doesn't contain invalid characters for xcconfig files
+						if (typeof value === 'string' && (value.indexOf('<') !== -1 || value.indexOf('>') !== -1)) {
+							this.logger.error(__('Invalid characters found in module.xcconfig for module %s', m.manifest.name));
+							this.logger.error(__('File: %s', file));
+							this.logger.error(__('Key: %s', key));
+							this.logger.error(__('Value contains invalid characters: %s', value.substring(0, 100)));
+							throw new Error('Invalid xcconfig value contains XML/HTML characters (< or >) in module: ' + m.manifest.name + ', file: ' + file);
+						}
+
+						Array.isArray(variables[key]) || (variables[key] = []);
+						variables[key].push(name);
+						contents.push((name + '=' + value).replace(new RegExp('\\$\\(' + key + '\\)', 'g'), '$(' + name + ')')); // eslint-disable-line security/detect-non-literal-regexp
+					}.bind(this));
+				} catch (e) {
+					if (e.message && e.message.indexOf('Invalid xcconfig') !== -1) {
+						throw e;
+					}
+					this.logger.warn(__('Failed to parse module.xcconfig for module %s: %s', m.manifest.name, e.message));
+					this.logger.warn(__('File: %s', file));
+					this.logger.warn(__('Skipping this module\'s xcconfig entries'));
+				}
 			}
-		});
+		}.bind(this));
 	}, this);
 
 	Object.keys(variables).forEach(function (v) {

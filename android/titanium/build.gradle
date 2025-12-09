@@ -309,6 +309,9 @@ dependencies {
 	// WebSocket library is needed to do JavaScript debugging.
 	implementation 'org.java-websocket:Java-WebSocket:1.5.3'
 
+	// Brotli decompression library for HTTP responses.
+	implementation 'org.brotli:dec:0.1.2'
+
 	// Reference all local JAR file dependencies.
 	implementation fileTree(dir: 'lib', include: ['*.jar'])
 

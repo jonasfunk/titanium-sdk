@@ -43,6 +43,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
+
+import org.brotli.dec.BrotliInputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
@@ -202,7 +205,10 @@ public class TiHTTPClient
 				redirectedLocation = currentLocation.toString();
 			}
 
-			contentEncoding = connection.getContentEncoding();
+			// Get Content-Encoding from response headers instead of connection.getContentEncoding()
+			// because getContentEncoding() may return null for encodings Android doesn't recognize (like brotli)
+			contentEncoding = connection.getHeaderField("Content-Encoding");
+			Log.d(TAG, "Content-Encoding: " + contentEncoding);
 
 			contentType = connection.getContentType();
 
@@ -239,8 +245,13 @@ public class TiHTTPClient
 
 			// Guard for null stream response from the server
 			if (in != null) {
+				// Decompress response based on Content-Encoding header
 				if ("gzip".equalsIgnoreCase(contentEncoding)) {
 					in = new GZIPInputStream(in);
+				} else if ("deflate".equalsIgnoreCase(contentEncoding)) {
+					in = new InflaterInputStream(in);
+				} else if ("br".equalsIgnoreCase(contentEncoding)) {
+					in = new BrotliInputStream(in);
 				}
 				is = new BufferedInputStream(in);
 			}
@@ -1503,8 +1514,10 @@ public class TiHTTPClient
 					Base64.encodeToString((username + ":" + password).getBytes(), Base64.NO_WRAP);
 				client.setRequestProperty("Authorization", "Basic " + encodedCredentials);
 			}
-			// This is to set gzip default to disable
+			// Set default to no compression to avoid issues with transparent decompression.
 			// https://code.google.com/p/android/issues/detail?id=174949
+			// Users can opt-in to compression by setting "Accept-Encoding" header manually.
+			// Supported encodings: gzip, deflate, br (brotli)
 			client.setRequestProperty("Accept-Encoding", "identity");
 			if (parts.size() > 0 && needMultipart) {
 				boundary = HttpUrlConnectionUtils.generateBoundary();

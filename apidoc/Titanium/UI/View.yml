@@ -860,49 +860,6 @@ methods:
       type: Promise<Dimension>
     since: "12.9.0"
     platforms: [android, iphone, ipad, macos]
-    summary: Measures the view and returns the computed size in default units (DIP/points), even if not attached.
-    description: |
-        Computes the view's natural width/height using layout measurement. Supports optional constraints.
-        Works for unattached views. Returns numeric width/height in the project's default unit.
-    parameters:
-      - name: options
-        type: Dictionary
-        optional: true
-        summary: Optional constraints.
-        properties:
-          - name: width
-            type: [Number, String]
-            summary: Exact width constraint used for measuring.
-          - name: height
-            type: [Number, String]
-            summary: Exact height constraint used for measuring.
-          - name: maxWidth
-            type: [Number, String]
-            summary: Maximum width (AT_MOST) used for measuring. Defaults to screen width if neither width nor maxWidth is provided.
-          - name: maxHeight
-            type: [Number, String]
-            summary: Maximum height (AT_MOST) used for measuring.
-          - name: minWidth
-            type: [Number, String]
-            summary: Minimum width required; if not met, measure retries up to `maxFrames`/`timeoutMs`.
-          - name: minHeight
-            type: [Number, String]
-            summary: Minimum height required; if not met, measure retries up to `maxFrames`/`timeoutMs`.
-          - name: maxFrames
-            type: Number
-            summary: Maximum number of frames to defer/retry measuring when constraints not satisfied. Default 3.
-          - name: timeoutMs
-            type: Number
-            summary: Optional timeout in milliseconds for retry loop. Default 200ms.
-      - name: callback
-        type: Callback<Dimension>
-        optional: true
-        summary: Optional callback receiving `{ width, height }`.
-    returns:
-      summary: On SDK 10+, this method will return a `Promise` that resolves to `{ width, height }` in default units.
-      type: Promise<Dimension>
-    since: "12.9.0"
-    platforms: [android, iphone, ipad, macos]
 
   - name: add
     summary: Adds a child to this view's hierarchy.

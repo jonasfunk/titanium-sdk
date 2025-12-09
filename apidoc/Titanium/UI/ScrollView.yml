@@ -51,25 +51,14 @@ methods:
             `curve` bruger `Ti.UI.ANIMATION_CURVE_*`-konstanter.
 
             Bemærk at standarden svarer til at angive `{ animated: true }`.
+            
+            Properties:
+            - `animated` (Boolean): Animate scrollovergangen.
+            - `duration` (Number, Android): Varighed i millisekunder for den animerede scroll.
+            - `curve` (Number, Android): Easing-kurve for scrollanimationen. Bruger `Ti.UI.ANIMATION_CURVE_*` konstanter.
         type: Dictionary
         optional: true
         default: "{ animated: true }"
-        properties:
-          - name: animated
-            type: Boolean
-            optional: true
-            summary: Animate scrollovergangen.
-          - name: duration
-            type: Number
-            optional: true
-            platforms: [android]
-            summary: Varighed i millisekunder for den animerede scroll (Android).
-          - name: curve
-            type: Number
-            optional: true
-            platforms: [android]
-            constants: Titanium.UI.ANIMATION_CURVE_*
-            summary: Easing-kurve for scrollanimationen (Android).
 
   - name: setContentOffset
     summary: Sets the value of the [contentOffset](Titanium.UI.ScrollView.contentOffset) property.

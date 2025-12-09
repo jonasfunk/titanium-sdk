@@ -1612,10 +1612,6 @@ properties:
     type: Number
     constants: [Titanium.UI.Android.SOFT_INPUT_STATE_*, Titanium.UI.Android.SOFT_INPUT_ADJUST_*]
     availability: creation
-    notes: |
-        Since 12.8.0 on Android, changing this property after the window has opened will update
-        the underlying Activity's soft input mode at runtime. For best backward compatibility
-        continue to set it at creation when possible.
     examples:
       - title: Soft Input Visibility and Adjustment
         example: |

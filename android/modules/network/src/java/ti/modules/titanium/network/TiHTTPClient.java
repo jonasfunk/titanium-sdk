@@ -208,7 +208,6 @@ public class TiHTTPClient
 			// Get Content-Encoding from response headers instead of connection.getContentEncoding()
 			// because getContentEncoding() may return null for encodings Android doesn't recognize (like brotli)
 			contentEncoding = connection.getHeaderField("Content-Encoding");
-			Log.d(TAG, "Content-Encoding: " + contentEncoding);
 
 			contentType = connection.getContentType();
 
@@ -257,12 +256,11 @@ public class TiHTTPClient
 			}
 
 			if (is != null) {
-				Log.d(TAG, "Content length: " + contentLength, Log.DEBUG_MODE);
+				
 				int count = 0;
 				long totalSize = 0;
 				byte[] buf = new byte[8192];
-				Log.d(TAG, "Available: " + is.available(), Log.DEBUG_MODE);
-
+			
 				while ((count = is.read(buf)) != -1) {
 					if (aborted) {
 						break;

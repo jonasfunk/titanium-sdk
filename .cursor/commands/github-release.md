@@ -1,7 +1,7 @@
 Create GitHub Release
 
 Purpose
-- Create a new GitHub release on the fork with auto-generated release notes.
+- Create a new GitHub release on the fork with updated version, changelog, and release notes.
 
 Usage
 - Trigger this command and include the version number in your message, e.g. `13.3.0`.
@@ -11,36 +11,66 @@ Steps
 1) Ensure we are at the repo root: `/Users/jonasfunk/Udvikling/titanium-sdk`.
 2) Verify `gh` CLI is authenticated.
 3) Extract version from user message (e.g. `13.3.0`).
-4) Check if tag already exists - abort if it does.
-5) Create release with auto-generated notes from commits since last release.
-6) Open the release URL in browser for review.
+4) Update version in `package.json` to the new version.
+5) Run `npm install --package-lock-only` to update `package-lock.json`.
+6) Find the last release commit by searching for "chore(release): bump version" in git log.
+7) List all commits since the last release using `git log <last-release-commit>..HEAD --oneline --no-merges`.
+8) Update `CHANGELOG.md` with new features (feat), bug fixes (fix), and community credits based on commits.
+9) Check if tag already exists - abort if it does.
+10) Create release with CHANGELOG.md as release notes.
+11) Open the release URL in browser for review.
 
-Shell (non-interactive)
+CHANGELOG Format
+```markdown
+# [VERSION](https://github.com/tidev/titanium_mobile/compare/PREV_VERSION...VERSION) (YYYY-MM-DD)
+
+## About this release
+
+Titanium SDK VERSION is a minor release of the SDK.
+
+## New Features
+
+### JavaScript
+* **Feature**: Description ([commit](url))
+
+### Android
+* **Feature**: Description ([commit](url))
+
+### iOS
+* **Feature**: Description ([commit](url))
+
+## Bug Fixes
+
+### Android
+* **Component**: Description ([commit](url))
+
+### iOS
+* **Component**: Description ([commit](url))
+
+## Community Credits
+
+* author
+  * commit message ([hash](url))
+```
+
+Commit Categorization
+- `feat(platform):` → New Features under platform section
+- `fix(platform):` → Bug Fixes under platform section
+- `feat(js):` → New Features under JavaScript section
+- `chore:`, `docs:` → Usually not included in changelog
+- Include commit hash links in Community Credits
+
+Shell Commands Reference
 ```bash
-# repo root
-cd /Users/jonasfunk/Udvikling/titanium-sdk
+# Find last release commit
+git log --oneline --grep="chore(release): bump version" | head -1
 
-# ensure on correct branch and up to date
-git checkout master
-git pull --ff-only origin master || true
+# List commits since last release (replace COMMIT_HASH)
+git log COMMIT_HASH..HEAD --oneline --no-merges
 
-# set version (replace with actual version from user message)
-VERSION="${VERSION:-13.3.0}"
-
-# check if tag exists
-if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
-  echo "Error: Tag $VERSION already exists"
-  exit 1
-fi
-
-# create release with auto-generated notes
-gh release create "$VERSION" \
-  --title "$VERSION" \
-  --generate-notes \
-  --latest
-
-echo "Release $VERSION created successfully!"
-echo "View at: https://github.com/jonasfunk/titanium-sdk/releases/tag/$VERSION"
+# Show commit details
+git show COMMIT_HASH --stat -q
+git log COMMIT_HASH -1 --format="%B"
 ```
 
 Pre-release variant
@@ -48,21 +78,13 @@ Pre-release variant
 # For RC/beta releases, add --prerelease flag
 gh release create "$VERSION" \
   --title "$VERSION" \
-  --generate-notes \
+  --notes-file CHANGELOG.md \
   --prerelease
 ```
 
-With custom notes file
-```bash
-# If you have a CHANGELOG or notes file
-gh release create "$VERSION" \
-  --title "$VERSION" \
-  --notes-file CHANGELOG.md \
-  --latest
-```
-
 Notes
-- The `--generate-notes` flag auto-generates release notes from merged PRs and commits since the last release.
+- Always update `package.json` and `package-lock.json` before creating release.
+- Use `--notes-file CHANGELOG.md` to include the full changelog in release notes.
 - Use `--prerelease` for RC, beta, or other non-stable releases.
 - Use `--target <branch>` if releasing from a branch other than master.
 - You can edit the release notes on GitHub after creation.

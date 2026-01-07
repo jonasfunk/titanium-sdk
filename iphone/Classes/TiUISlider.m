@@ -61,7 +61,7 @@
     leftTrackImageState = UIControlStateNormal;
     rightTrackImageState = UIControlStateNormal;
 
-    // ✅ Initialize lastFiredValue
+    // Initialize lastFiredValue
     lastFiredValue = NAN;
   }
   return sliderView;
@@ -263,7 +263,7 @@
   [[self sliderView] setMaximumTrackTintColor:newColor];
 }
 
-// ✅ Add steps support for iOS
+// Add steps support for iOS
 - (void)setSteps_:(id)value
 {
   if (value == nil) {
@@ -275,38 +275,47 @@
   if ([value isKindOfClass:[NSArray class]]) {
     // Array of specific step values
     NSArray *stepArray = (NSArray *)value;
-    NSMutableArray *stepValues = [NSMutableArray arrayWithCapacity:[stepArray count]];
+    NSMutableArray *stepValuesArray = [NSMutableArray arrayWithCapacity:[stepArray count]];
 
     for (id stepValue in stepArray) {
-      [stepValues addObject:[NSNumber numberWithFloat:[TiUtils floatValue:stepValue]]];
+      [stepValuesArray addObject:[NSNumber numberWithFloat:[TiUtils floatValue:stepValue]]];
     }
 
     // Sort steps array to ensure proper ordering
-    [stepValues sortUsingComparator:^NSComparisonResult(NSNumber *a, NSNumber *b) {
+    [stepValuesArray sortUsingComparator:^NSComparisonResult(NSNumber *a, NSNumber *b) {
       return [a compare:b];
     }];
 
     RELEASE_TO_NIL(steps);
-    steps = [[NSArray arrayWithArray:stepValues] retain];
+    steps = [[NSArray arrayWithArray:stepValuesArray] retain];
     snapToSteps = [steps count] > 0;
 
+    // Auto-set min/max from array bounds
+    if (snapToSteps) {
+      float minStep = [[steps firstObject] floatValue];
+      float maxStep = [[steps lastObject] floatValue];
+      [[self sliderView] setMinimumValue:minStep];
+      [[self sliderView] setMaximumValue:maxStep];
+    }
+
   } else if ([value isKindOfClass:[NSNumber class]]) {
-    // Count of equal steps to divide the range
+    // Count of equal steps - auto-generate 0 to (stepCount-1)
     int stepCount = [TiUtils intValue:value];
     if (stepCount > 1) {
-      NSMutableArray *stepValues = [NSMutableArray arrayWithCapacity:stepCount];
-      float minValue = [[self sliderView] minimumValue];
-      float maxValue = [[self sliderView] maximumValue];
-      float range = maxValue - minValue;
+      NSMutableArray *stepValuesArray = [NSMutableArray arrayWithCapacity:stepCount];
 
+      // Generate steps from 0 to stepCount-1 (e.g., 7 steps = [0,1,2,3,4,5,6])
       for (int i = 0; i < stepCount; i++) {
-        float stepValue = minValue + (range * i / (stepCount - 1));
-        [stepValues addObject:[NSNumber numberWithFloat:stepValue]];
+        [stepValuesArray addObject:[NSNumber numberWithFloat:(float)i]];
       }
 
       RELEASE_TO_NIL(steps);
-      steps = [[NSArray arrayWithArray:stepValues] retain];
+      steps = [[NSArray arrayWithArray:stepValuesArray] retain];
       snapToSteps = YES;
+
+      // Auto-set min/max
+      [[self sliderView] setMinimumValue:0];
+      [[self sliderView] setMaximumValue:(float)(stepCount - 1)];
     } else {
       NSLog(@"[WARN] Step count must be greater than 1");
       RELEASE_TO_NIL(steps);
@@ -340,6 +349,63 @@
   return nearestStep;
 }
 
+// Find which step index a value corresponds to
+- (int)findStepIndex:(float)value
+{
+  if (!snapToSteps || steps == nil || [steps count] == 0) {
+    return 0;
+  }
+
+  for (int i = 0; i < [steps count]; i++) {
+    float stepValue = [[steps objectAtIndex:i] floatValue];
+    if (fabsf(value - stepValue) < 0.001f) {
+      return i;
+    }
+  }
+
+  return 0;
+}
+
+// Only change step when we've actually REACHED/CROSSED into a new step
+// Not just when we're closer to it
+- (float)findStepForValue:(float)value fromCurrentStep:(float)currentStep
+{
+  if (!snapToSteps || steps == nil || [steps count] == 0) {
+    return value;
+  }
+
+  // First time - find initial step based on value
+  if (isnan(currentStep)) {
+    return [self findNearestStep:value];
+  }
+
+  // Find index of current step
+  int currentIndex = [self findStepIndex:currentStep];
+
+  // Check if we've reached the next step (moving right/up)
+  if (currentIndex < (int)[steps count] - 1) {
+    float nextStep = [[steps objectAtIndex:currentIndex + 1] floatValue];
+    if (value >= nextStep) {
+      // We've reached or passed the next step
+      // But check if we've gone even further (skipped steps)
+      return [self findStepForValue:value fromCurrentStep:nextStep];
+    }
+  }
+
+  // Check if we've reached the previous step (moving left/down)
+  if (currentIndex > 0) {
+    float prevStep = [[steps objectAtIndex:currentIndex - 1] floatValue];
+    if (value <= prevStep) {
+      // We've reached or passed the previous step
+      // But check if we've gone even further (skipped steps)
+      return [self findStepForValue:value fromCurrentStep:prevStep];
+    }
+  }
+
+  // Haven't crossed into a new step - stay on current
+  return currentStep;
+}
+
 - (CGFloat)verifyHeight:(CGFloat)suggestedHeight
 {
   CGFloat result = [[self sliderView] sizeThatFits:CGSizeZero].height;
@@ -364,27 +430,24 @@ USE_PROXY_FOR_VERIFY_AUTORESIZING
 {
   UISlider *slider = (UISlider *)sender;
   float currentValue = [slider value];
+  float valueToReport = currentValue;
 
-  // ✅ Apply snapping if steps are enabled and this is user input
-  if (snapToSteps && isTrusted) {
-    float snappedValue = [self findNearestStep:currentValue];
-    if (fabsf(currentValue - snappedValue) > 0.001f) {
-      // Need to snap to different value
-      [slider setValue:snappedValue animated:NO];
-      currentValue = snappedValue;
-    }
+  // If steps are enabled, only change step when we've actually REACHED a new step
+  // Not just when we're closer to it
+  if (snapToSteps && [steps count] > 0) {
+    valueToReport = [self findStepForValue:currentValue fromCurrentStep:lastFiredValue];
   }
 
-  // ✅ Only fire change event if value actually changed from last fired value
-  BOOL shouldFireEvent = isnan(lastFiredValue) || fabsf(currentValue - lastFiredValue) > 0.001f;
+  // Only fire change event if step actually changed
+  BOOL shouldFireEvent = isnan(lastFiredValue) || fabsf(valueToReport - lastFiredValue) > 0.001f;
 
   if (shouldFireEvent) {
-    lastFiredValue = currentValue;
+    lastFiredValue = valueToReport;
 
-    // ✅ Determine the value to return - step index or actual value
-    float returnValue = currentValue;
+    // Determine the value to return - step index or actual value
+    float returnValue = valueToReport;
     if (stepValues && snapToSteps) {
-      returnValue = [self findNearestStepIndex:currentValue];
+      returnValue = [self findNearestStepIndex:valueToReport];
     }
 
     NSNumber *newValue = [NSNumber numberWithFloat:returnValue];
@@ -398,6 +461,7 @@ USE_PROXY_FOR_VERIFY_AUTORESIZING
 
 - (void)sliderBegin:(id)sender
 {
+  isTracking = YES;
   NSNumber *newValue = [NSNumber numberWithFloat:[(UISlider *)sender value]];
   if ([[self proxy] _hasListeners:@"touchstart"]) {
     [[self proxy] fireEvent:@"touchstart" withObject:[NSDictionary dictionaryWithObject:newValue forKey:@"value"]];
@@ -409,6 +473,39 @@ USE_PROXY_FOR_VERIFY_AUTORESIZING
 
 - (void)sliderEnd:(id)sender
 {
+  isTracking = NO;
+
+  UISlider *slider = (UISlider *)sender;
+  float finalValue = [slider value];
+  float snappedValue = finalValue;
+
+  // Snap to nearest step at release
+  if (snapToSteps) {
+    snappedValue = [self findNearestStep:finalValue];
+
+    // Visually snap the slider
+    if (fabsf(finalValue - snappedValue) > 0.001f) {
+      [slider setValue:snappedValue animated:YES];
+    }
+
+    // Fire change event if snapped value is different from last fired value
+    if (fabsf(snappedValue - lastFiredValue) > 0.001f) {
+      lastFiredValue = snappedValue;
+
+      float returnValue = snappedValue;
+      if (stepValues) {
+        returnValue = [self findNearestStepIndex:snappedValue];
+      }
+
+      NSNumber *newValue = [NSNumber numberWithFloat:returnValue];
+      [self.proxy replaceValue:newValue forKey:@"value" notification:NO];
+
+      if ([self.proxy _hasListeners:@"change"]) {
+        [self.proxy fireEvent:@"change" withObject:[NSDictionary dictionaryWithObjectsAndKeys:newValue, @"value", NUMBOOL(YES), @"isTrusted", nil]];
+      }
+    }
+  }
+
   // APPLE BUG: Sometimes in a double-click our 'UIControlEventTouchUpInside' event is fired more than once.  This is
   // ALWAYS indicated by a sub-0.1s difference between the clicks, and results in an additional fire of the event.
   // We have to track the PREVIOUS (not current) inverval and prevent these ugly misfires!
@@ -416,7 +513,8 @@ USE_PROXY_FOR_VERIFY_AUTORESIZING
   NSDate *now = [[NSDate alloc] init];
   NSTimeInterval currentTimeInterval = [now timeIntervalSinceDate:lastTouchUp];
   if (!(lastTimeInterval < 0.1 && currentTimeInterval < 0.1)) {
-    NSNumber *newValue = [NSNumber numberWithFloat:[(UISlider *)sender value]];
+    float valueForEvent = snapToSteps ? snappedValue : finalValue;
+    NSNumber *newValue = [NSNumber numberWithFloat:valueForEvent];
     if ([[self proxy] _hasListeners:@"touchend"]) {
       [[self proxy] fireEvent:@"touchend" withObject:[NSDictionary dictionaryWithObject:newValue forKey:@"value"]];
     }
@@ -429,7 +527,7 @@ USE_PROXY_FOR_VERIFY_AUTORESIZING
   lastTouchUp = now;
 }
 
-// ✅ Add stepValues property support
+// Add stepValues property support
 - (void)setStepValues_:(id)value
 {
   stepValues = [TiUtils boolValue:value def:NO];

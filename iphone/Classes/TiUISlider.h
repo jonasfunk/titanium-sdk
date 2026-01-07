@@ -22,13 +22,15 @@
   TiDimension rightTrackLeftCap;
   TiDimension rightTrackTopCap;
 
-  // ✅ Add steps support for iOS
+  // Steps support for iOS
   NSArray<NSNumber *> *steps;
   BOOL snapToSteps;
-  // ✅ Track last fired value to prevent duplicate events
+  // Track last fired value to prevent duplicate events
   float lastFiredValue;
-  // ✅ Return step indices instead of values when enabled
+  // Return step indices instead of values when enabled
   BOOL stepValues;
+  // Track if user is currently dragging
+  BOOL isTracking;
 }
 
 /**

@@ -16,9 +16,12 @@ Steps
 6) Find the last release commit by searching for "chore(release): bump version" in git log.
 7) List all commits since the last release using `git log <last-release-commit>..HEAD --oneline --no-merges`.
 8) Update `CHANGELOG.md` with new features (feat), bug fixes (fix), and community credits based on commits.
-9) Check if tag already exists - abort if it does.
-10) Create release with CHANGELOG.md as release notes.
-11) Open the release URL in browser for review.
+9) Commit changes with message: `chore(release): bump version to VERSION and update changelog`.
+10) Push changes to origin/master.
+11) Check if tag already exists - abort if it does.
+12) Create release with CHANGELOG.md as release notes.
+13) Upload SDK zip file from `dist/mobilesdk-VERSION-osx.zip` to the release.
+14) Open the release URL in browser for review.
 
 CHANGELOG Format
 ```markdown
@@ -71,6 +74,17 @@ git log COMMIT_HASH..HEAD --oneline --no-merges
 # Show commit details
 git show COMMIT_HASH --stat -q
 git log COMMIT_HASH -1 --format="%B"
+
+# Commit and push changes
+git add -A
+git commit -m "chore(release): bump version to $VERSION and update changelog"
+git push origin master
+
+# Create release with changelog
+gh release create "$VERSION" --title "$VERSION" --notes-file CHANGELOG.md --latest
+
+# Upload SDK zip file to release
+gh release upload "$VERSION" "dist/mobilesdk-$VERSION-osx.zip" --clobber
 ```
 
 Pre-release variant
@@ -87,4 +101,6 @@ Notes
 - Use `--notes-file CHANGELOG.md` to include the full changelog in release notes.
 - Use `--prerelease` for RC, beta, or other non-stable releases.
 - Use `--target <branch>` if releasing from a branch other than master.
+- The SDK zip file should be built before running this command (located in `dist/mobilesdk-VERSION-osx.zip`).
+- Use `--clobber` flag to overwrite existing assets if re-uploading.
 - You can edit the release notes on GitHub after creation.

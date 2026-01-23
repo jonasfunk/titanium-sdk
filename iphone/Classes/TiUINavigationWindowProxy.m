@@ -177,6 +177,75 @@
       YES);
 }
 
+- (void)insertWindow:(NSArray *)args
+{
+  TiWindowProxy *window = [args objectAtIndex:0];
+  ENSURE_TYPE(window, TiWindowProxy);
+
+  NSNumber *indexNum = [args objectAtIndex:1];
+  ENSURE_TYPE(indexNum, NSNumber);
+  NSInteger index = [indexNum integerValue];
+
+  NSDictionary *options = nil;
+  if ([args count] > 2) {
+    options = [args objectAtIndex:2];
+    ENSURE_TYPE_OR_NIL(options, NSDictionary);
+  }
+
+  // Prepare the window
+  [window setIsManaged:YES];
+  [window setTab:(TiViewProxy<TiTab> *)self];
+  [window setParentOrientationController:self];
+
+  TiThreadPerformOnMainThread(
+      ^{
+        [self insertOnUIThread:@[ window, [NSNumber numberWithInteger:index], options ?: [NSNull null] ]];
+      },
+      YES);
+}
+
+- (void)insertOnUIThread:(NSArray *)args
+{
+  if (transitionIsAnimating || transitionWithGesture || !navController) {
+    [self performSelector:_cmd withObject:args afterDelay:0.1];
+    return;
+  }
+
+  TiWindowProxy *window = [args objectAtIndex:0];
+  NSInteger index = [[args objectAtIndex:1] integerValue];
+  id optionsArg = [args objectAtIndex:2];
+  NSDictionary *options = [optionsArg isKindOfClass:[NSDictionary class]] ? optionsArg : nil;
+
+  // Get current view controllers stack
+  NSMutableArray *controllers = [NSMutableArray arrayWithArray:[navController viewControllers]];
+
+  // Validate index bounds
+  if (index < 0) {
+    index = 0;
+  }
+  if (index > (NSInteger)[controllers count]) {
+    index = [controllers count];
+  }
+
+  // Prevent inserting a window that's already in the stack
+  UIViewController *windowController = [window hostingController];
+  if ([controllers containsObject:windowController]) {
+    NSLog(@"[WARN] Trying to insert a view controller that is already in the navigation window controller stack. Skipping insert…");
+    return;
+  }
+
+  // Trigger window lifecycle
+  [window windowWillOpen];
+  [window windowDidOpen];
+
+  // Insert the window's controller at the specified index
+  [controllers insertObject:windowController atIndex:index];
+
+  // Apply the new stack
+  BOOL animated = [TiUtils boolValue:@"animated" properties:options def:NO];
+  [navController setViewControllers:controllers animated:animated];
+}
+
 - (void)windowClosing:(TiWindowProxy *)window animated:(BOOL)animated
 {
   // NO OP NOW

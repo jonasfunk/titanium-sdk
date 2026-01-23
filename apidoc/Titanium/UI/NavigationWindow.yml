@@ -89,6 +89,42 @@ methods:
         optional: true
         default: "{ animated: false }"
 
+  - name: insertWindow
+    summary: Inserts a window into the navigation stack at the specified index.
+    description: |
+        This method allows you to insert a window into the navigation stack at any position,
+        enabling scenarios like deep linking where you want to start at a specific level
+        in the navigation hierarchy while still allowing the user to navigate back to
+        previous levels.
+
+        The window will be inserted at the specified index in the navigation stack.
+        Index 0 is the root window (which cannot be replaced), so the minimum useful
+        index is 1. If the index is greater than the current stack size, the window
+        will be appended to the end of the stack.
+
+        Note: This method is only available on iOS. On Android, use the workaround of
+        opening windows sequentially with `animated: false`.
+    platforms: [iphone, ipad, macos]
+    since: "12.7.0"
+    parameters:
+      - name: window
+        summary: Window to insert into the navigation stack.
+        type: Titanium.UI.Window
+
+      - name: index
+        summary: |
+            The index at which to insert the window. Index 0 is the root window.
+            Use index 1 to insert a window right after the root window.
+        type: Number
+
+      - name: options
+        summary: |
+            Options supporting a single `animated` boolean property to determine whether the
+            insertion will be animated (default: false).
+        type: AnimatedOptions
+        optional: true
+        default: "{ animated: false }"
+
 examples:
   - title: Simple Navigation Window
     example: |
@@ -169,4 +205,44 @@ examples:
         function closeWindow(){
             $.win3.close();
         }
+        ```
+
+  - title: Deep Linking with insertWindow (iOS only)
+    example: |
+        This example demonstrates how to use `insertWindow` to start at a deep level
+        in the navigation hierarchy while still allowing the user to navigate back.
+
+        ``` js
+        // Create the root window
+        var rootWindow = Ti.UI.createWindow({
+            backgroundColor: 'white',
+            title: 'Home'
+        });
+
+        // Create the navigation window
+        var nav = Ti.UI.createNavigationWindow({
+            window: rootWindow
+        });
+
+        // Create intermediate and detail windows
+        var categoryWindow = Ti.UI.createWindow({
+            backgroundColor: 'lightgray',
+            title: 'Category'
+        });
+
+        var detailWindow = Ti.UI.createWindow({
+            backgroundColor: 'lightblue',
+            title: 'Product Detail'
+        });
+
+        // Open the navigation window
+        nav.open();
+
+        // Simulate deep link: insert category window, then open detail window
+        // This allows the user to go back: Detail -> Category -> Home
+        nav.insertWindow(categoryWindow, 1, { animated: false });
+        nav.openWindow(detailWindow, { animated: false });
+
+        // Now the navigation stack is: [rootWindow, categoryWindow, detailWindow]
+        // User can press back to go to categoryWindow, then back again to rootWindow
         ```

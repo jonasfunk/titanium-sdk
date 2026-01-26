@@ -177,7 +177,7 @@
       YES);
 }
 
-- (void)insertWindow:(NSArray *)args
+- (KrollPromise *)insertWindow:(NSArray *)args
 {
   TiWindowProxy *window = [args objectAtIndex:0];
   ENSURE_TYPE(window, TiWindowProxy);
@@ -192,58 +192,94 @@
     ENSURE_TYPE_OR_NIL(options, NSDictionary);
   }
 
-  // Prepare the window
+  JSContext *context = [self currentContext];
+
+  // Check if window is already in the stack
+  NSArray *currentControllers = [navController viewControllers];
+  for (UIViewController *vc in currentControllers) {
+    if ([vc isKindOfClass:[TiViewController class]]) {
+      TiViewProxy *proxy = [(TiViewController *)vc proxy];
+      if (proxy == window) {
+        return [KrollPromise rejectedWithErrorMessage:@"Window is already in the navigation stack" inContext:context];
+      }
+    }
+  }
+
+  // Prepare the window (same as openWindow does)
   [window setIsManaged:YES];
   [window setTab:(TiViewProxy<TiTab> *)self];
   [window setParentOrientationController:self];
 
+  // Open the window to initialize it properly, but don't animate
+  // This will push it to the top of the stack
+  if (![window opening]) {
+    [window open:nil];
+  }
+
+  KrollPromise *promise = [[KrollPromise alloc] initInContext:context];
+
+  // Retain objects for async use
+  [window retain];
+  [promise retain];
+
+  // Wait for the window to be added to the stack, then move it to the correct position
   TiThreadPerformOnMainThread(
       ^{
-        [self insertOnUIThread:@[ window, [NSNumber numberWithInteger:index], options ?: [NSNull null] ]];
+        [self moveWindowToIndex:window atIndex:index promise:promise];
       },
-      YES);
+      NO);
+
+  return [promise autorelease];
 }
 
-- (void)insertOnUIThread:(NSArray *)args
+- (void)moveWindowToIndex:(TiWindowProxy *)window atIndex:(NSInteger)index promise:(KrollPromise *)promise
 {
-  if (transitionIsAnimating || transitionWithGesture || !navController) {
-    [self performSelector:_cmd withObject:args afterDelay:0.1];
-    return;
-  }
-
-  TiWindowProxy *window = [args objectAtIndex:0];
-  NSInteger index = [[args objectAtIndex:1] integerValue];
-  id optionsArg = [args objectAtIndex:2];
-  NSDictionary *options = [optionsArg isKindOfClass:[NSDictionary class]] ? optionsArg : nil;
-
-  // Get current view controllers stack
-  NSMutableArray *controllers = [NSMutableArray arrayWithArray:[navController viewControllers]];
-
-  // Validate index bounds
-  if (index < 0) {
-    index = 0;
-  }
-  if (index > (NSInteger)[controllers count]) {
-    index = [controllers count];
-  }
-
-  // Prevent inserting a window that's already in the stack
+  // Wait for any transition to complete and for the window to be in the stack
   UIViewController *windowController = [window hostingController];
-  if ([controllers containsObject:windowController]) {
-    NSLog(@"[WARN] Trying to insert a view controller that is already in the navigation window controller stack. Skipping insert…");
+  NSArray *currentControllers = [navController viewControllers];
+
+  if (transitionIsAnimating || transitionWithGesture || !navController || ![currentControllers containsObject:windowController]) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      [self moveWindowToIndex:window atIndex:index promise:promise];
+    });
     return;
   }
 
-  // Trigger window lifecycle
-  [window windowWillOpen];
-  [window windowDidOpen];
+  @try {
+    // Get current stack
+    NSMutableArray *controllers = [NSMutableArray arrayWithArray:currentControllers];
 
-  // Insert the window's controller at the specified index
-  [controllers insertObject:windowController atIndex:index];
+    // Remove the window from its current position (it was pushed to the top)
+    [controllers removeObject:windowController];
 
-  // Apply the new stack
-  BOOL animated = [TiUtils boolValue:@"animated" properties:options def:NO];
-  [navController setViewControllers:controllers animated:animated];
+    // Validate index bounds
+    NSInteger adjustedIndex = index;
+    if (adjustedIndex < 0) {
+      adjustedIndex = 0;
+    }
+    if (adjustedIndex > (NSInteger)[controllers count]) {
+      adjustedIndex = [controllers count];
+    }
+
+    // Insert at the desired position
+    [controllers insertObject:windowController atIndex:adjustedIndex];
+
+    // Apply the new stack without animation
+    [navController setViewControllers:controllers animated:NO];
+
+    if (promise != nil) {
+      [promise resolve:@[]];
+    }
+  } @catch (NSException *ex) {
+    NSLog(@"[ERROR] %@", ex.description);
+    if (promise != nil) {
+      [promise rejectWithErrorMessage:ex.description];
+    }
+  }
+
+  // Release retained objects
+  [window release];
+  [promise release];
 }
 
 - (void)windowClosing:(TiWindowProxy *)window animated:(BOOL)animated

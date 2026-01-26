@@ -102,10 +102,17 @@ methods:
         index is 1. If the index is greater than the current stack size, the window
         will be appended to the end of the stack.
 
+        This method returns a Promise that resolves when the window has been inserted.
+        If you need to perform additional navigation operations after inserting,
+        wait for the Promise to resolve first.
+
         Note: This method is only available on iOS. On Android, use the workaround of
         opening windows sequentially with `animated: false`.
     platforms: [iphone, ipad, macos]
     since: "12.7.0"
+    returns:
+        summary: A Promise that resolves when the window has been inserted.
+        type: Promise<void>
     parameters:
       - name: window
         summary: Window to insert into the navigation stack.
@@ -239,10 +246,28 @@ examples:
         nav.open();
 
         // Simulate deep link: insert category window, then open detail window
-        // This allows the user to go back: Detail -> Category -> Home
-        nav.insertWindow(categoryWindow, 1, { animated: false });
-        nav.openWindow(detailWindow, { animated: false });
+        // Use Promise to ensure proper sequencing
+        nav.insertWindow(categoryWindow, 1, { animated: false })
+            .then(() => nav.openWindow(detailWindow, { animated: false }));
 
         // Now the navigation stack is: [rootWindow, categoryWindow, detailWindow]
         // User can press back to go to categoryWindow, then back again to rootWindow
+        ```
+
+  - title: Insert window before closing current (iOS only)
+    example: |
+        This example shows how to insert a window and then close the current window,
+        using the Promise to ensure proper sequencing.
+
+        ``` js
+        // Assuming nav is an open NavigationWindow and currentWindow is the top window
+        var newWindow = Ti.UI.createWindow({
+            backgroundColor: 'green',
+            title: 'Inserted Window'
+        });
+
+        // Insert the new window before the current one, then close the current
+        // The Promise ensures the insert completes before the close
+        nav.insertWindow(newWindow, 1, { animated: false })
+            .then(() => nav.closeWindow(currentWindow, { animated: true }));
         ```

@@ -29,6 +29,12 @@ public class NavigationWindowProxy extends WindowProxy
 		super();
 	}
 
+	@Kroll.getProperty
+	public TiWindowProxy[] getWindows()
+	{
+		return windows.toArray(new TiWindowProxy[0]);
+	}
+
 	@Override
 	@Kroll.method
 	public KrollPromise<Void> open(@Kroll.argument(optional = true) Object arg)

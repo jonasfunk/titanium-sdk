@@ -1594,6 +1594,17 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
       }
     }
   }
+  // Extract 'children' before property processing so it doesn't bypass add:
+  NSArray *childrenToAdd = nil;
+  if (properties != nil) {
+    childrenToAdd = [properties objectForKey:@"children"];
+    if (childrenToAdd != nil) {
+      NSMutableDictionary *filtered = [NSMutableDictionary dictionaryWithDictionary:properties];
+      [filtered removeObjectForKey:@"children"];
+      properties = filtered;
+    }
+  }
+
   [super _initWithProperties:properties];
   updateStarted = NO;
   allowLayoutUpdate = YES;
@@ -1601,6 +1612,12 @@ LAYOUTFLAGS_SETTER(setHorizontalWrap, horizontalWrap, horizontalWrap, [self will
   allowLayoutUpdate = NO;
 
   [self createSafeAreaViewProxyForWindowProperties:properties];
+
+  if (childrenToAdd != nil) {
+    for (id child in childrenToAdd) {
+      [self add:child];
+    }
+  }
 }
 
 - (void)createSafeAreaViewProxyForWindowProperties:(NSDictionary *)properties

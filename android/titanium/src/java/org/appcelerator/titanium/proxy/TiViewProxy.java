@@ -135,11 +135,18 @@ public abstract class TiViewProxy extends KrollProxy
 	@Override
 	public void handleCreationDict(KrollDict options)
 	{
+		// Extract 'children' before property processing so it goes through add()
+		Object childArray = options.containsKey("children") ? options.remove("children") : null;
+
 		options = handleStyleOptions(options);
 		super.handleCreationDict(options);
 
 		if (options.containsKey(TiC.PROPERTY_OVERRIDE_CURRENT_ANIMATION)) {
 			overrideCurrentAnimation = TiConvert.toBoolean(options, TiC.PROPERTY_OVERRIDE_CURRENT_ANIMATION, false);
+		}
+
+		if (childArray != null) {
+			add(childArray);
 		}
 
 		//TODO eventManager.addOnEventChangeListener(this);

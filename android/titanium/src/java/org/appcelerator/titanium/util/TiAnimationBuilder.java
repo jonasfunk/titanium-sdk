@@ -121,6 +121,7 @@ public class TiAnimationBuilder
 	protected String top = null, bottom = null, left = null, right = null;
 	protected String centerX = null, centerY = null;
 	protected String width = null, height = null;
+	protected String paddingLeft = null, paddingRight = null, paddingTop = null, paddingBottom = null;
 	protected Integer backgroundColor = null;
 	protected Integer color = null;
 	protected float rotationY, rotationX = -1;
@@ -140,6 +141,8 @@ public class TiAnimationBuilder
 	// Temporary hardware layer promotion tracking for smoother alpha/transform animations
 	private boolean promotedHardwareLayer = false;
 	private int previousLayerType = View.LAYER_TYPE_NONE;
+	// Track if we set transient state to ensure proper cleanup
+	private boolean hasTransientState = false;
 
 	public TiAnimationBuilder()
 	{
@@ -274,6 +277,26 @@ public class TiAnimationBuilder
 		if (options.containsKey(TiC.PROPERTY_ROTATION_X)) {
 			rotationX = TiConvert.toFloat(options, TiC.PROPERTY_ROTATION_X, -1);
 		}
+
+		if (options.containsKey(TiC.PROPERTY_PADDING)) {
+			Object paddingObj = options.get(TiC.PROPERTY_PADDING);
+			if (paddingObj instanceof HashMap) {
+				HashMap paddingMap = (HashMap) paddingObj;
+				if (paddingMap.containsKey(TiC.PROPERTY_LEFT)) {
+					paddingLeft = TiConvert.toString(paddingMap.get(TiC.PROPERTY_LEFT));
+				}
+				if (paddingMap.containsKey(TiC.PROPERTY_RIGHT)) {
+					paddingRight = TiConvert.toString(paddingMap.get(TiC.PROPERTY_RIGHT));
+				}
+				if (paddingMap.containsKey(TiC.PROPERTY_TOP)) {
+					paddingTop = TiConvert.toString(paddingMap.get(TiC.PROPERTY_TOP));
+				}
+				if (paddingMap.containsKey(TiC.PROPERTY_BOTTOM)) {
+					paddingBottom = TiConvert.toString(paddingMap.get(TiC.PROPERTY_BOTTOM));
+				}
+			}
+		}
+
 		this.options = options;
 	}
 
@@ -662,6 +685,42 @@ public class TiAnimationBuilder
 			relayoutChild = !includesRotation && (autoreverse == null || !autoreverse.booleanValue());
 		}
 
+		if (paddingLeft != null || paddingRight != null || paddingTop != null || paddingBottom != null) {
+			if (animatorHelper == null) {
+				animatorHelper = new AnimatorHelper();
+			}
+
+			int currentPaddingLeft = view.getPaddingLeft();
+			int currentPaddingRight = view.getPaddingRight();
+			int currentPaddingTop = view.getPaddingTop();
+			int currentPaddingBottom = view.getPaddingBottom();
+
+			if (paddingLeft != null) {
+				TiDimension dim = new TiDimension(paddingLeft, TiDimension.TYPE_LEFT);
+				int toPaddingLeft = dim.getAsPixels(view);
+				addAnimator(animators,
+					ObjectAnimator.ofInt(animatorHelper, "paddingLeft", currentPaddingLeft, toPaddingLeft));
+			}
+			if (paddingRight != null) {
+				TiDimension dim = new TiDimension(paddingRight, TiDimension.TYPE_RIGHT);
+				int toPaddingRight = dim.getAsPixels(view);
+				addAnimator(animators,
+					ObjectAnimator.ofInt(animatorHelper, "paddingRight", currentPaddingRight, toPaddingRight));
+			}
+			if (paddingTop != null) {
+				TiDimension dim = new TiDimension(paddingTop, TiDimension.TYPE_TOP);
+				int toPaddingTop = dim.getAsPixels(view);
+				addAnimator(animators,
+					ObjectAnimator.ofInt(animatorHelper, "paddingTop", currentPaddingTop, toPaddingTop));
+			}
+			if (paddingBottom != null) {
+				TiDimension dim = new TiDimension(paddingBottom, TiDimension.TYPE_BOTTOM);
+				int toPaddingBottom = dim.getAsPixels(view);
+				addAnimator(animators,
+					ObjectAnimator.ofInt(animatorHelper, "paddingBottom", currentPaddingBottom, toPaddingBottom));
+			}
+		}
+
 		AnimatorSet as = new AnimatorSet();
 		as.playTogether(animators);
 
@@ -726,14 +785,19 @@ public class TiAnimationBuilder
 	/** Restore original layer type after animation. */
 	private void restoreLayerTypeIfPromoted()
 	{
-		if (view != null && promotedHardwareLayer) {
-			view.setLayerType(previousLayerType, null);
-			promotedHardwareLayer = false;
-			// Hint to parent that the view finished a transient transformation
-			try {
-				view.setHasTransientState(false);
-			} catch (Throwable t) {
-				// Ignore – method exists from API 16
+		if (view != null) {
+			if (promotedHardwareLayer) {
+				view.setLayerType(previousLayerType, null);
+				promotedHardwareLayer = false;
+			}
+			// Always restore transient state if we set it, regardless of hardware layer promotion
+			if (hasTransientState) {
+				try {
+					view.setHasTransientState(false);
+					hasTransientState = false;
+				} catch (Throwable t) {
+					// Ignore – method exists from API 16
+				}
 			}
 		}
 	}
@@ -1001,6 +1065,30 @@ public class TiAnimationBuilder
 			invalidateParentView();
 		}
 
+		public void setPaddingLeft(final int p)
+		{
+			view.setPadding(p, view.getPaddingTop(), view.getPaddingRight(), view.getPaddingBottom());
+			invalidateParentView();
+		}
+
+		public void setPaddingRight(final int p)
+		{
+			view.setPadding(view.getPaddingLeft(), view.getPaddingTop(), p, view.getPaddingBottom());
+			invalidateParentView();
+		}
+
+		public void setPaddingTop(final int p)
+		{
+			view.setPadding(view.getPaddingLeft(), p, view.getPaddingRight(), view.getPaddingBottom());
+			invalidateParentView();
+		}
+
+		public void setPaddingBottom(final int p)
+		{
+			view.setPadding(view.getPaddingLeft(), view.getPaddingTop(), view.getPaddingRight(), p);
+			invalidateParentView();
+		}
+
 		private void invalidateParentView()
 		{
 			ViewParent vp = view.getParent();
@@ -1092,6 +1180,7 @@ public class TiAnimationBuilder
 			// Mark transient state to keep parent from unnecessary optimizations during animation
 			try {
 				view.setHasTransientState(true);
+				hasTransientState = true;
 			} catch (Throwable t) {
 				// Ignore – method exists from API 16
 			}
@@ -1208,7 +1297,8 @@ public class TiAnimationBuilder
 		// the ValueAnimator path so we can animate via AnimatorHelper (we'll still
 		// use a spring-like interpolator there).
 		if (top != null || bottom != null || left != null || right != null
-			|| centerX != null || centerY != null || width != null || height != null) {
+			|| centerX != null || centerY != null || width != null || height != null
+			|| paddingLeft != null || paddingRight != null || paddingTop != null || paddingBottom != null) {
 			return false;
 		}
 
@@ -1253,6 +1343,23 @@ public class TiAnimationBuilder
 					add.accept(new SpringAnimation(view, DynamicAnimation.TRANSLATION_Y), target);
 				}
 			}
+			// Direct scaleX / scaleY support for spring animations
+			if (options.containsKey(TiC.PROPERTY_SCALE_X)) {
+				float target = TiConvert.toFloat(options, TiC.PROPERTY_SCALE_X);
+				add.accept(new SpringAnimation(view, DynamicAnimation.SCALE_X), target);
+			}
+			if (options.containsKey(TiC.PROPERTY_SCALE_Y)) {
+				float target = TiConvert.toFloat(options, TiC.PROPERTY_SCALE_Y);
+				add.accept(new SpringAnimation(view, DynamicAnimation.SCALE_Y), target);
+			}
+			// Direct rotation support for spring animations
+			if (options.containsKey(TiC.PROPERTY_ROTATION)) {
+				float target = TiConvert.toFloat(options, TiC.PROPERTY_ROTATION);
+				// Note: DynamicAnimation.ROTATION uses radians, but Matrix2D stores degrees
+				// For consistency with Matrix2D behavior, we use degrees directly
+				// (Android's view.setRotation also uses degrees)
+				add.accept(new SpringAnimation(view, DynamicAnimation.ROTATION), target);
+			}
 		}
 
 		// Matrix-based transforms (only if we can decompose to view properties)
@@ -1289,6 +1396,15 @@ public class TiAnimationBuilder
 			final int[] ended = new int[] { 0 };
 			// Promote to HW layer for the duration of spring animations if helpful
 			promoteHardwareLayerIfNeeded();
+			// Mark transient state to keep parent from unnecessary optimizations during animation
+			if (view != null) {
+				try {
+					view.setHasTransientState(true);
+					hasTransientState = true;
+				} catch (Throwable t) {
+					// Ignore – method exists from API 16
+				}
+			}
 			for (SpringAnimation sa : list) {
 				sa.addEndListener((anim, canceled, value, velocity) -> {
 					ended[0]++;
@@ -1342,6 +1458,8 @@ public class TiAnimationBuilder
 		}
 		view.clearAnimation();
 		setAnimationRunningFor(view, false);
+		// Restore transient state and layer type when stopping animation
+		restoreLayerTypeIfPromoted();
 		if (animationProxy != null) {
 			animationProxy.fireEvent(TiC.EVENT_CANCEL, null);
 		}

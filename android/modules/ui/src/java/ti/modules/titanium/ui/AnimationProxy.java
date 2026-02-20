@@ -30,7 +30,11 @@ import org.appcelerator.titanium.view.TiAnimation;
 		TiC.PROPERTY_HEIGHT,
 		TiC.PROPERTY_BACKGROUND_COLOR,
 		TiC.PROPERTY_TRANSLATION_X,
-		TiC.PROPERTY_TRANSLATION_Y
+		TiC.PROPERTY_TRANSLATION_Y,
+		TiC.PROPERTY_SCALE_X,
+		TiC.PROPERTY_SCALE_Y,
+		TiC.PROPERTY_ROTATION,
+		TiC.PROPERTY_PADDING
 	})
 public class AnimationProxy extends TiAnimation
 {

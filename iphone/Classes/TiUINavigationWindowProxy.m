@@ -25,6 +25,7 @@
   RELEASE_TO_NIL(navController);
   RELEASE_TO_NIL(current);
   RELEASE_TO_NIL(fullWidthBackGestureRecognizer);
+  RELEASE_TO_NIL(insertedWindows);
 
   [super _destroy];
 }
@@ -37,6 +38,20 @@
 - (NSString *)apiName
 {
   return @"Ti.UI.NavigationWindow";
+}
+
+- (NSArray *)windows
+{
+  NSMutableArray *windowProxies = [NSMutableArray array];
+  for (UIViewController *viewController in [navController viewControllers]) {
+    if ([viewController isKindOfClass:[TiViewController class]]) {
+      TiViewProxy *proxy = [(TiViewController *)viewController proxy];
+      if (proxy != nil && [proxy isKindOfClass:[TiWindowProxy class]]) {
+        [windowProxies addObject:proxy];
+      }
+    }
+  }
+  return windowProxies;
 }
 
 - (void)popGestureStateHandler:(UIGestureRecognizer *)recognizer
@@ -101,7 +116,13 @@
 
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
-  BOOL isRootWindow = (current == rootWindow);
+  // Check if current window is the first (root) in the navigation stack
+  UIViewController *firstController = [[navController viewControllers] firstObject];
+  BOOL isRootWindow = NO;
+  if ([firstController isKindOfClass:[TiViewController class]]) {
+    TiViewProxy *firstProxy = [(TiViewController *)firstController proxy];
+    isRootWindow = (firstProxy == current);
+  }
 
   if (current != nil && !isRootWindow) {
     return [TiUtils boolValue:[current valueForKey:@"swipeToClose"] def:YES];
@@ -151,7 +172,17 @@
 
   JSContext *context = [self currentContext];
 
-  if (window == rootWindow && ![[TiApp app] willTerminate]) {
+  // Check if this window is the first (root) in the navigation stack
+  // We check the actual stack position rather than the original rootWindow variable
+  // because insertWindow can change which window is at position 0
+  UIViewController *firstController = [[navController viewControllers] firstObject];
+  BOOL isCurrentRoot = NO;
+  if ([firstController isKindOfClass:[TiViewController class]]) {
+    TiViewProxy *firstProxy = [(TiViewController *)firstController proxy];
+    isCurrentRoot = (firstProxy == window);
+  }
+
+  if (isCurrentRoot && ![[TiApp app] willTerminate]) {
     DebugLog(@"[ERROR] Can not close the root window of the NavigationWindow. Close the NavigationWindow instead.");
     return [KrollPromise rejectedWithErrorMessage:@"Can not close the root window of the NavigationWindow. Close the NavigationWindow instead." inContext:context];
   }
@@ -186,71 +217,91 @@
   ENSURE_TYPE(indexNum, NSNumber);
   NSInteger index = [indexNum integerValue];
 
-  NSDictionary *options = nil;
-  if ([args count] > 2) {
-    options = [args objectAtIndex:2];
-    ENSURE_TYPE_OR_NIL(options, NSDictionary);
-  }
-
   JSContext *context = [self currentContext];
-
-  // Check if window is already in the stack
-  NSArray *currentControllers = [navController viewControllers];
-  for (UIViewController *vc in currentControllers) {
-    if ([vc isKindOfClass:[TiViewController class]]) {
-      TiViewProxy *proxy = [(TiViewController *)vc proxy];
-      if (proxy == window) {
-        return [KrollPromise rejectedWithErrorMessage:@"Window is already in the navigation stack" inContext:context];
-      }
-    }
-  }
-
-  // Prepare the window (same as openWindow does)
-  [window setIsManaged:YES];
-  [window setTab:(TiViewProxy<TiTab> *)self];
-  [window setParentOrientationController:self];
-
-  // Open the window to initialize it properly, but don't animate
-  // This will push it to the top of the stack
-  if (![window opening]) {
-    [window open:nil];
-  }
-
   KrollPromise *promise = [[KrollPromise alloc] initInContext:context];
 
-  // Retain objects for async use
-  [window retain];
+  // Retain promise for async use (window is retained by the block capture)
   [promise retain];
 
-  // Wait for the window to be added to the stack, then move it to the correct position
   TiThreadPerformOnMainThread(
       ^{
-        [self moveWindowToIndex:window atIndex:index promise:promise];
+        [self insertWindowOnUIThread:window atIndex:index promise:promise retryCount:0];
       },
       NO);
 
   return [promise autorelease];
 }
 
-- (void)moveWindowToIndex:(TiWindowProxy *)window atIndex:(NSInteger)index promise:(KrollPromise *)promise
+- (void)insertWindowOnUIThread:(TiWindowProxy *)window atIndex:(NSInteger)index promise:(KrollPromise *)promise retryCount:(NSInteger)retryCount
 {
-  // Wait for any transition to complete and for the window to be in the stack
-  UIViewController *windowController = [window hostingController];
-  NSArray *currentControllers = [navController viewControllers];
+  // Use [self controller] to ensure navController is initialized (lazy loading)
+  UINavigationController *nav = [self controller];
 
-  if (transitionIsAnimating || transitionWithGesture || !navController || ![currentControllers containsObject:windowController]) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-      [self moveWindowToIndex:window atIndex:index promise:promise];
+  DebugLog(@"[DEBUG] insertWindowOnUIThread called (retry: %ld) - transitionIsAnimating: %d, transitionWithGesture: %d, navController: %@",
+      (long)retryCount, transitionIsAnimating, transitionWithGesture, nav);
+
+  // Wait for any ongoing transition, but give up after 50 retries (5 seconds)
+  if ((transitionIsAnimating || transitionWithGesture) && retryCount < 50) {
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: waiting for transition to complete (retry %ld)...", (long)retryCount);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      [self insertWindowOnUIThread:window atIndex:index promise:promise retryCount:retryCount + 1];
     });
     return;
   }
 
-  @try {
-    // Get current stack
-    NSMutableArray *controllers = [NSMutableArray arrayWithArray:currentControllers];
+  // Check if navController is still nil (should not happen after calling [self controller])
+  if (!nav) {
+    NSLog(@"[ERROR] insertWindowOnUIThread: navController is nil, cannot insert window");
+    if (promise != nil) {
+      [promise rejectWithErrorMessage:@"NavigationWindow is not open"];
+    }
+    [promise release];
+    return;
+  }
 
-    // Remove the window from its current position (it was pushed to the top)
-    [controllers removeObject:windowController];
+  // If we've been waiting too long, log a warning but proceed anyway
+  if (retryCount >= 50) {
+    NSLog(@"[WARN] insertWindowOnUIThread: timed out waiting for transition, proceeding anyway (transitionIsAnimating: %d, transitionWithGesture: %d)",
+        transitionIsAnimating, transitionWithGesture);
+    // Reset the flags to allow the insert
+    transitionIsAnimating = NO;
+    transitionWithGesture = NO;
+  }
+
+  DebugLog(@"[DEBUG] insertWindowOnUIThread: proceeding with insert");
+
+  @try {
+    // Check if window is already in the stack
+    UIViewController *windowController = [window hostingController];
+    NSArray *currentControllers = [nav viewControllers];
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: current stack size: %lu", (unsigned long)[currentControllers count]);
+
+    if ([currentControllers containsObject:windowController]) {
+      NSLog(@"[WARN] Window is already in the navigation stack. Skipping insert.");
+      if (promise != nil) {
+        [promise rejectWithErrorMessage:@"Window is already in the navigation stack"];
+      }
+      [promise release];
+      return;
+    }
+
+    // Prepare the window (same as openWindow does)
+    [window setIsManaged:YES];
+    [window setTab:(TiViewProxy<TiTab> *)self];
+    [window setParentOrientationController:self];
+
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: triggering window lifecycle");
+
+    // Trigger window lifecycle - this initializes the view
+    [window windowWillOpen];
+    [window windowDidOpen];
+
+    // Force load the view to ensure it's fully initialized
+    // This prevents crashes when UIKit queries the view controller
+    [windowController loadViewIfNeeded];
+
+    // Get current stack and insert at the desired position
+    NSMutableArray *controllers = [NSMutableArray arrayWithArray:currentControllers];
 
     // Validate index bounds
     NSInteger adjustedIndex = index;
@@ -261,25 +312,54 @@
       adjustedIndex = [controllers count];
     }
 
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: inserting at index %ld (requested: %ld)", (long)adjustedIndex, (long)index);
+
     // Insert at the desired position
     [controllers insertObject:windowController atIndex:adjustedIndex];
 
     // Apply the new stack without animation
-    [navController setViewControllers:controllers animated:NO];
+    [nav setViewControllers:controllers animated:NO];
 
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: stack updated, new size: %lu", (unsigned long)[[nav viewControllers] count]);
+
+    // Retain the window in our array since TiViewController doesn't retain its proxy
+    if (insertedWindows == nil) {
+      insertedWindows = [[NSMutableArray alloc] init];
+    }
+    [insertedWindows addObject:window];
+
+    // After setViewControllers:animated:NO, UIKit may not call didShowViewController
+    // for the current top window. We need to ensure the top window maintains focus.
+    UIViewController *topVC = [nav topViewController];
+    if ([topVC isKindOfClass:[TiViewController class]]) {
+      TiViewProxy *topProxy = [(TiViewController *)topVC proxy];
+      if (topProxy != nil && [topProxy isKindOfClass:[TiWindowProxy class]]) {
+        TiWindowProxy *topWindow = (TiWindowProxy *)topProxy;
+        // Update current to the top window
+        RELEASE_TO_NIL(current);
+        current = [topWindow retain];
+        // Ensure the top window has focus (gainFocus checks internally if already focused)
+        if (focussed) {
+          [topWindow gainFocus];
+        }
+      }
+    }
+
+    DebugLog(@"[DEBUG] insertWindowOnUIThread: resolving promise");
     if (promise != nil) {
       [promise resolve:@[]];
+      DebugLog(@"[DEBUG] insertWindowOnUIThread: promise resolved");
     }
   } @catch (NSException *ex) {
-    NSLog(@"[ERROR] %@", ex.description);
+    NSLog(@"[ERROR] insertWindow failed: %@", ex.description);
     if (promise != nil) {
       [promise rejectWithErrorMessage:ex.description];
     }
   }
 
-  // Release retained objects
-  [window release];
+  // Release promise (window is now retained in insertedWindows array)
   [promise release];
+  DebugLog(@"[DEBUG] insertWindowOnUIThread: complete");
 }
 
 - (void)windowClosing:(TiWindowProxy *)window animated:(BOOL)animated
@@ -462,6 +542,11 @@
   [window setTab:nil];
   [window setParentOrientationController:nil];
 
+  // Remove from inserted windows array if present
+  if (insertedWindows != nil) {
+    [insertedWindows removeObject:window];
+  }
+
   // for this to work right, we need to sure that we always have the tab close the window
   // and not let the window simply close by itself. this will ensure that we tell the
   // tab that we're doing that
@@ -480,7 +565,15 @@
           [navController setViewControllers:[NSArray array]];
 
           for (UIViewController *viewController in currentControllers) {
-            TiWindowProxy *win = (TiWindowProxy *)[(TiViewController *)viewController proxy];
+            // Safely check if this is a TiViewController with a valid proxy
+            if (![viewController isKindOfClass:[TiViewController class]]) {
+              continue;
+            }
+            TiViewProxy *proxy = [(TiViewController *)viewController proxy];
+            if (proxy == nil || ![proxy isKindOfClass:[TiWindowProxy class]]) {
+              continue;
+            }
+            TiWindowProxy *win = (TiWindowProxy *)proxy;
             [win setTab:nil];
             [win setParentOrientationController:nil];
             [[win close:nil] flush];
@@ -492,6 +585,8 @@
           RELEASE_TO_NIL(navController);
           RELEASE_TO_NIL(rootWindow);
           RELEASE_TO_NIL(current);
+          // Release inserted windows array
+          RELEASE_TO_NIL(insertedWindows);
         }
       },
       YES);

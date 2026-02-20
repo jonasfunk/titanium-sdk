@@ -739,6 +739,13 @@ events:
   - name: close
     summary: Fired when the window is closed.
 
+  - name: willClose
+    summary: Fired when the window is about to close.
+    description: |
+        This event is fired before the window actually closes, allowing you to perform
+        cleanup or prepare for the close. It fires before the `close` event. The close
+        cannot be cancelled; this is a notification only.
+
   - name: focus
     summary: Fired when the window gains focus.
     description: |

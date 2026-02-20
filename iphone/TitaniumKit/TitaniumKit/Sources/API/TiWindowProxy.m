@@ -156,6 +156,9 @@
 
 - (void)windowWillClose
 {
+  if ([self _hasListeners:@"willClose"]) {
+    [self fireEvent:@"willClose" withObject:nil withSource:self propagate:NO reportSuccess:NO errorCode:0 message:nil];
+  }
   if (tab == nil && !self.isManaged) {
     [[[[TiApp app] controller] topContainerController] willCloseWindow:self];
   }

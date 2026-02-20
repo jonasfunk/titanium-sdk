@@ -64,6 +64,7 @@ public class TiC
 	public static final String EVENT_CHANGE = "change";
 	public static final String EVENT_CLICK = "click";
 	public static final String EVENT_CLOSE = "close";
+	public static final String EVENT_WILL_CLOSE = "willClose";
 	public static final String EVENT_COMPLETE = "complete";
 	public static final String EVENT_DELETE = "delete";
 	public static final String EVENT_DESTROY = "destroy";

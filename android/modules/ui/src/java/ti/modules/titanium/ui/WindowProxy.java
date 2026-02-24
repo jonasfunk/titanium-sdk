@@ -188,6 +188,9 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 	@Override
 	protected void handleClose(@NonNull KrollDict options)
 	{
+		// Merge close options into properties, allowing transitions to be overridden at close time.
+		properties.putAll(options);
+
 		// Fetch this window's "exitOnClose" property setting.
 		boolean exitOnClose = (TiActivityWindows.getWindowCount() <= 1);
 		exitOnClose = TiConvert.toBoolean(getProperty(TiC.PROPERTY_EXIT_ON_CLOSE), exitOnClose);
@@ -212,6 +215,7 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 
 		// Destroy the activity and apply exit animations if configured.
 		if (!exitOnClose && super.hasActivityTransitions()) {
+			applyActivityTransitions(activity.getWindow(), properties);
 			activity.finishAfterTransition();
 		} else {
 			activity.finish();

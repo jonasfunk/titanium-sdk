@@ -142,6 +142,28 @@
     [rootWindow windowDidOpen];
     return [KrollPromise resolved:@[] inContext:context];
   }
+
+  // If no root window exists yet, set this window as root and update the nav controller.
+  if (rootWindow == nil) {
+    rootWindow = [window retain];
+    [rootWindow setIsManaged:YES];
+    [rootWindow setTab:(TiViewProxy<TiTab> *)self];
+    [rootWindow setParentOrientationController:self];
+    [rootWindow open:nil];
+
+    if (navController != nil) {
+      TiThreadPerformOnMainThread(
+          ^{
+            [navController setViewControllers:@[ [rootWindow hostingController] ] animated:NO];
+          },
+          YES);
+    }
+
+    [rootWindow windowWillOpen];
+    [rootWindow windowDidOpen];
+    return [KrollPromise resolved:@[] inContext:context];
+  }
+
   [window setIsManaged:YES];
   [window setTab:(TiViewProxy<TiTab> *)self];
   [window setParentOrientationController:self];
@@ -461,12 +483,17 @@
 {
   if (rootWindow == nil) {
     id window = [self valueForKey:@"window"];
-    ENSURE_TYPE(window, TiWindowProxy);
-    rootWindow = [window retain];
-    [rootWindow setIsManaged:YES];
-    [rootWindow setTab:(TiViewProxy<TiTab> *)self];
-    [rootWindow setParentOrientationController:self];
-    [rootWindow open:nil];
+    if (window != nil && [window isKindOfClass:[TiWindowProxy class]]) {
+      rootWindow = [window retain];
+      [rootWindow setIsManaged:YES];
+      [rootWindow setTab:(TiViewProxy<TiTab> *)self];
+      [rootWindow setParentOrientationController:self];
+      [rootWindow open:nil];
+    } else {
+      // No root window set yet. Create a temporary empty controller.
+      // It will be replaced when openWindow is called.
+      return [[[UIViewController alloc] init] autorelease];
+    }
   }
   return [rootWindow hostingController];
 }

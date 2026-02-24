@@ -1587,7 +1587,8 @@ public abstract class TiViewProxy extends KrollProxy
 									&& (framesLeft[0] > 0)
 									&& (SystemClock.uptimeMillis() < deadline)) {
 									framesLeft[0]--;
-									nv.post(this);
+									// Use main handler for retry so it runs even when view is not attached to a window
+									getMainHandler().post(this);
 									return;
 								}
 

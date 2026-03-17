@@ -76,7 +76,8 @@ import ti.modules.titanium.ui.widget.TiView;
 		TiC.PROPERTY_BAR_COLOR,
 		TiC.PROPERTY_STATUS_BAR_COLOR,
 		TiC.PROPERTY_NAVIGATION_BAR_COLOR,
-		TiC.PROPERTY_UI_FLAGS
+		TiC.PROPERTY_UI_FLAGS,
+		TiC.PROPERTY_NAV_BAR_COLOR
 	})
 
 public class WindowProxy extends TiWindowProxy implements TiActivityWindow
@@ -338,9 +339,9 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 			win.setStatusBarColor(colorInt);
 		}
 
-		if (hasProperty(TiC.PROPERTY_NAVIGATION_BAR_COLOR)) {
+		if (hasProperty(TiC.PROPERTY_NAV_BAR_COLOR)) {
 			int colorInt = TiColorHelper.parseColor(
-				TiConvert.toString(getProperty(TiC.PROPERTY_NAVIGATION_BAR_COLOR)), activity);
+				TiConvert.toString(getProperty(TiC.PROPERTY_NAV_BAR_COLOR)), activity);
 			win.setNavigationBarColor(colorInt);
 		}
 
@@ -371,7 +372,7 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 		}
 		activity.getActivityProxy().getDecorView().add(this);
 
-		// Need to handle the cached activity proxy properties and url window in the JS side.
+		// Need to handle the cached activity proxy properties and URL window in the JS side.
 		callPropertySync(PROPERTY_POST_WINDOW_CREATED, null);
 	}
 
@@ -490,7 +491,7 @@ public class WindowProxy extends TiWindowProxy implements TiActivityWindow
 			}
 		}
 
-		if (name.equals(TiC.PROPERTY_NAVIGATION_BAR_COLOR)) {
+		if (name.equals(TiC.PROPERTY_NAV_BAR_COLOR)) {
 			if (windowActivity != null && windowActivity.get() != null) {
 				AppCompatActivity activity = windowActivity.get();
 				int colorInt = TiColorHelper.parseColor(TiConvert.toString(value), activity);

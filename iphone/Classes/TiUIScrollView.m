@@ -310,8 +310,12 @@
   [super frameSizeChanged:frame bounds:visibleBounds];
 }
 
-- (void)scrollToBottom:(id)options
+- (void)scrollToBottom
 {
+  /*
+   * Calculate the bottom height & width and, sets the offset from the
+   * content view’s origin that corresponds to the receiver’s origin.
+   */
   UIScrollView *currScrollView = [self scrollView];
 
   CGSize svContentSize = currScrollView.contentSize;
@@ -323,9 +327,7 @@
 
   CGPoint newOffset = CGPointMake(bottomWidth, bottomHeight);
 
-  BOOL animated = [TiUtils boolValue:@"animated" properties:options def:(scrollView != nil)];
-
-  [currScrollView setContentOffset:newOffset animated:animated];
+  [currScrollView setContentOffset:newOffset animated:YES];
 }
 
 - (void)scrollToTop
@@ -420,35 +422,59 @@
 
 - (void)setContentOffset_:(id)value withObject:(id)property
 {
-  ENSURE_TYPE_OR_NIL(property, NSDictionary);
   CGPoint newOffset = [TiUtils pointValue:value];
-  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:YES];
-
+  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:(scrollView != nil)];
   [[self scrollView] setContentOffset:newOffset animated:animated];
 }
 
-- (void)setContentInsets_:(id)value withObject:(id)property
+#if IS_SDK_IOS_26
+- (void)setEdgeEffect_:(id)value
 {
-  ENSURE_TYPE_OR_NIL(property, NSDictionary);
-  UIEdgeInsets newInsets = [TiUtils contentInsets:value];
-  BOOL animated = [TiUtils boolValue:@"animated" properties:property def:NO];
+  ENSURE_SINGLE_ARG(value, NSDictionary);
 
-  if (animated) {
-    // Cancel any existing animations to prevent conflicts
-    [scrollView.layer removeAllAnimations];
+  NSNumber *topEdgeEffect = value[@"top"];
+  NSNumber *rightEdgeEffect = value[@"right"];
+  NSNumber *bottomEdgeEffect = value[@"bottom"];
+  NSNumber *leftEdgeEffect = value[@"left"];
 
-    [UIView animateWithDuration:[TiUtils doubleValue:@"duration" properties:property def:0.3]
-                     animations:^{
-                       [[self scrollView] setContentInset:newInsets];
-                     }];
-  } else {
-    [[self scrollView] setContentInset:newInsets];
+  if (![TiUtils isIOSVersionOrGreater:@"26.0"]) {
+    NSLog(@"[ERROR] The \"edgeEffect\" API is only available on iOS 26+");
+    return;
+  }
+
+  if (topEdgeEffect != nil) {
+    self.scrollView.topEdgeEffect.style = [self formatEdgeEffectStyle:topEdgeEffect];
+  }
+
+  if (rightEdgeEffect != nil) {
+    self.scrollView.rightEdgeEffect.style = [self formatEdgeEffectStyle:rightEdgeEffect];
+  }
+
+  if (bottomEdgeEffect != nil) {
+    self.scrollView.bottomEdgeEffect.style = [self formatEdgeEffectStyle:bottomEdgeEffect];
+  }
+
+  if (leftEdgeEffect != nil) {
+    self.scrollView.leftEdgeEffect.style = [self formatEdgeEffectStyle:leftEdgeEffect];
   }
 }
 
+- (UIScrollEdgeEffectStyle *)formatEdgeEffectStyle:(NSNumber *)proxyEffectStyle
+{
+  switch (proxyEffectStyle.intValue) {
+  case 0:
+  default:
+    return UIScrollEdgeEffectStyle.automaticStyle;
+  case 1:
+    return UIScrollEdgeEffectStyle.hardStyle;
+  case 2:
+    return UIScrollEdgeEffectStyle.softStyle;
+  }
+}
+#endif
+
 - (void)setZoomScale_:(id)value withObject:(id)property
 {
-  ENSURE_TYPE_OR_NIL(property, NSDictionary);
   CGFloat scale = [TiUtils floatValue:value def:1.0];
   BOOL animated = [TiUtils boolValue:@"animated" properties:property def:NO];
   [[self scrollView] setZoomScale:scale animated:animated];

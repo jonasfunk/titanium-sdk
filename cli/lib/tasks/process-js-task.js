@@ -1,4 +1,5 @@
 import { IncrementalFileTask } from 'appc-tasks';
+import ChangeManager from 'appc-tasks/dist/incremental/ChangeManager.js';
 import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import jsanalyze from 'node-titanium-sdk/lib/jsanalyze.js';
@@ -478,7 +479,6 @@ export class ProcessJsTask extends IncrementalFileTask {
 	 * Override runTaskAction to add detailed logging about build decisions
 	 */
 	runTaskAction() {
-		const ChangeManager = require('appc-tasks/dist/incremental/ChangeManager').default;
 		let changeManager = new ChangeManager();
 		let fullBuild = !changeManager.load(this.incrementalDirectory);
 

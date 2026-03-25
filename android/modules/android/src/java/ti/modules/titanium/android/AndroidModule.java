@@ -724,6 +724,7 @@ public class AndroidModule extends KrollModule
 						callbackThisObject, promise);
 					currentActivity.requestPermissions(filteredPermissions.toArray(new String[0]), REQUEST_CODE);
 					return;
+				}
 			}
 			Activity currentActivity = TiApplication.getInstance().getCurrentActivity();
 			List<String> filteredPermissions = new ArrayList<String>();

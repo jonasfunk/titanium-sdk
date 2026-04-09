@@ -1,5 +1,5 @@
 import { IncrementalFileTask } from 'appc-tasks';
-import ChangeManager from 'appc-tasks/dist/incremental/ChangeManager.js';
+import ChangeManagerModule from 'appc-tasks/dist/incremental/ChangeManager.js';
 import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import jsanalyze from 'node-titanium-sdk/lib/jsanalyze.js';
@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 
 const MAX_SIMULTANEOUS_FILES = 256;
 const limit = pLimit(MAX_SIMULTANEOUS_FILES);
+const ChangeManager = ChangeManagerModule.default;
 
 /**
  * Task that processes JS files by applying several transforms and copying them to their

@@ -1,3 +1,9 @@
+## [13.5.0](https://github.com/jonasfunk/titanium-sdk/compare/13.4.0...13.5.0) (2026-04-09)
+
+## About this release
+
+Titanium SDK 13.5.0 updates this fork by merging upstream `13.1.1.GA` changes.
+
 ## [13.1.1](https://github.com/tidev/titanium_mobile/compare/13_1_0_GA...13.1.1) (2026-01-29)
 
 ## About this release

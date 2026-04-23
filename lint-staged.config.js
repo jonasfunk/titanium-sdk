@@ -11,7 +11,7 @@ const asyncFilter = async (arr, predicate) => {
 
 const config = {
 	'android/**/*.java': filenames => {
-		return `node ./build/scons gradlew checkJavaStyle --args --console plain -PchangedFiles='${filenames.join(',')}'`;
+		return `node ./build/scons gradlew checkJavaStyle --args --no-daemon --console plain -PchangedFiles='${filenames.join(',')}'`;
 	},
 	'iphone/**/*.{m,h}': [
 		'npx clang-format -style=file -i'

@@ -10,6 +10,10 @@ Titanium SDK 13.6.0 is a minor release of the SDK, adding Intl.DisplayNames and 
 
 * **Intl**: add Intl.DisplayNames and Intl.RelativeTimeFormat support ([9153c4a](https://github.com/jonasfunk/titanium-sdk/commit/9153c4a33365b4f563f6e79e22cedf0ef718fe05))
 
+### iOS
+
+* **TiViewController**: add `releaseProxy` method and update build process for arm64 compatibility ([e671646](https://github.com/jonasfunk/titanium-sdk/commit/e671646a8a2dd2d2528b20cf69cd4858635091e3))
+
 ## Bug Fixes
 
 ### iOS platform
@@ -21,6 +25,7 @@ Titanium SDK 13.6.0 is a minor release of the SDK, adding Intl.DisplayNames and 
 * jonasfunk
   * add Intl.DisplayNames and Intl.RelativeTimeFormat support ([9153c4a](https://github.com/jonasfunk/titanium-sdk/commit/9153c4a33365b4f563f6e79e22cedf0ef718fe05))
   * prevent potential crashes by niling out `_proxy` in `dealloc` ([77b3c22](https://github.com/jonasfunk/titanium-sdk/commit/77b3c22ebcfdbf05593a044d00fc6ee28073d9e7))
+  * add `releaseProxy` method and update build process for arm64 compatibility ([e671646](https://github.com/jonasfunk/titanium-sdk/commit/e671646a8a2dd2d2528b20cf69cd4858635091e3))
 
 ## [13.5.0](https://github.com/jonasfunk/titanium-sdk/compare/13.4.0...13.5.0) (2026-04-09)
 

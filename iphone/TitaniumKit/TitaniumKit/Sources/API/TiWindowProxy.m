@@ -32,7 +32,7 @@
           // UIKit may fire deferred viewDidDisappear: callbacks via
           // _UIAfterCACommitBlock after the proxy has been freed. Nil it
           // out here so those callbacks become no-ops instead of crashes.
-          controller->_proxy = nil;
+          [controller releaseProxy];
           RELEASE_TO_NIL(controller);
         },
         YES);

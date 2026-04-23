@@ -690,38 +690,19 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) "$(TITANIUM_SDK)/iphone/Frameworks/**"`);
 			}
 
 			if (target === 'iphonesimulator') {
-				// Search for third party framewrok included in module. If found any, exclude arm64 from simulator build.
-				// Assumption is that simulator arm64  architecture can only be supported via .xcframework.
+				// Build arm64-only for simulator. Legacy .framework files (non-xcframework) in platform/
+				// do not support arm64 simulator and are incompatible with this build. Fail early.
 				const frameworksPath = path.join(this.projectDir, 'platform');
-				const legacyFrameworks = new Set();
-
 				if (fs.existsSync(frameworksPath)) {
-					fs.readdirSync(frameworksPath).forEach(filename => {
-						if (filename.endsWith('.framework')) {
-							legacyFrameworks.add(filename);
-						}
-					});
-				}
-				if (legacyFrameworks.size > 0) {
-					const pbxFilePath = path.join(this.projectDir, `${this.moduleName}.xcodeproj`, 'project.pbxproj');
-					const proj = xcode.project(pbxFilePath).parseSync();
-					const configurations = proj.hash.project.objects.XCBuildConfiguration;
-					let excludeArchs = 'EXCLUDED_ARCHS=arm64 ';
-
-					// Merge with excluded archs in xcode setting
-					for (const key of Object.keys(proj.hash.project.objects.XCBuildConfiguration)) {
-						const configuration = configurations[key];
-						if (typeof configuration === 'object' && configuration.name === 'Release' && configuration.buildSettings.EXCLUDED_ARCHS) {
-							let archs = configuration.buildSettings.EXCLUDED_ARCHS;  // e.g. "i386 arm64 x86_64"
-							archs = archs.replace(/["]/g, '');
-							excludeArchs = excludeArchs.concat(archs);
-							break;
-						}
+					const legacyFrameworks = fs.readdirSync(frameworksPath).filter(f => f.endsWith('.framework'));
+					if (legacyFrameworks.length > 0) {
+						throw new Error(
+							`The module contains legacy .framework files that do not support arm64 simulator: ${legacyFrameworks.join(', ')}. `
+							+ 'Please migrate these dependencies to .xcframework format before building.'
+						);
 					}
-
-					args.push(excludeArchs);
-					this.logger.warn(`The module is using frameworks (${Array.from(legacyFrameworks)}) that do not support simulator arm64. Excluding simulator arm64. The app using this module may fail if you're on an arm64 Apple Silicon device.`);
 				}
+				args.push('ARCHS=arm64');
 			}
 
 			return args;
@@ -894,9 +875,6 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) "$(TITANIUM_SDK)/iphone/Frameworks/**"`);
 			}
 		};
 
-		// Verify the architectures and platform variants
-		const buildArchs = new Set();
-
 		const xcFrameworkInfo = await parsePlist(path.join(frameworkPath, 'Info.plist'));
 
 		// Check iOS device
@@ -908,7 +886,6 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) "$(TITANIUM_SDK)/iphone/Frameworks/**"`);
 		if (!iosDevice.SupportedArchitectures.includes('arm64')) {
 			this.logger.warn('The module is missing iOS device 64-bit support.');
 		}
-		iosDevice.SupportedArchitectures.forEach(arch => buildArchs.add(arch));
 
 		// Check iOS Simulator
 		const iosSim = xcFrameworkInfo.AvailableLibraries.find(l => l.SupportedPlatformVariant === 'simulator');
@@ -919,7 +896,6 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) "$(TITANIUM_SDK)/iphone/Frameworks/**"`);
 		if (!iosSim.SupportedArchitectures.includes('arm64')) {
 			this.logger.warn('The module is missing arm64 iOS simulator support.');
 		}
-		iosSim.SupportedArchitectures.forEach(arch => buildArchs.add(arch));
 
 		// macOS Catalyst support is optional
 		const macos = xcFrameworkInfo.AvailableLibraries.find(l => l.SupportedPlatformVariant === 'maccatalyst');
@@ -943,17 +919,6 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) "$(TITANIUM_SDK)/iphone/Frameworks/**"`);
 				target = 'Device';
 			}
 			this.logger.info(`${target} has architectures: ${libInfo.SupportedArchitectures}`);
-		}
-
-		// Match against manifest
-		// TODO: Drop architectures from manifest altogether now?
-		const manifestArchs = new Set(this.manifest.architectures.split(' '));
-		if (buildArchs.size !== manifestArchs.size) {
-			this.logger.error('There is discrepancy between the architectures specified in module manifest and compiled binary.');
-			this.logger.error(`Architectures in manifest: ${Array.from(manifestArchs).join(', ')}`);
-			this.logger.error(`Compiled binary architectures: ${Array.from(buildArchs).join(', ')}`);
-			this.logger.error('Please update manifest to match module binary architectures.\n');
-			process.exit(1); // TODO: Just throw an Error!
 		}
 	}
 

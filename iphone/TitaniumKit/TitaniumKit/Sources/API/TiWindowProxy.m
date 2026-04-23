@@ -28,6 +28,11 @@
   if (controller != nil) {
     TiThreadPerformOnMainThread(
         ^{
+          // _proxy is an assign (non-retained) ivar in TiViewController.
+          // UIKit may fire deferred viewDidDisappear: callbacks via
+          // _UIAfterCACommitBlock after the proxy has been freed. Nil it
+          // out here so those callbacks become no-ops instead of crashes.
+          controller->_proxy = nil;
           RELEASE_TO_NIL(controller);
         },
         YES);
